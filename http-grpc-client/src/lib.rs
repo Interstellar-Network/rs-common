@@ -3,7 +3,9 @@
 use bytes::Buf;
 use bytes::BufMut;
 use sp_runtime::offchain::{http, Duration};
+use sp_std::borrow::ToOwned;
 use sp_std::default::Default;
+use sp_std::str;
 use sp_std::vec;
 
 // we CAN NOT just send the raw encoded protobuf(eg using GarbleIpfsRequest{}.encode())
@@ -32,14 +34,23 @@ pub fn encode_body<T: prost::Message>(input: T) -> bytes::Bytes {
     buf.split_to(len + 5).freeze()
 }
 
+pub enum GrpcWebContentType {
+    /// "application/grpc-web" or "application/grpc-web+proto"
+    GrpcWeb,
+    /// "application/grpc-web-text+proto"
+    GrpcWebTextProto,
+    Unknown,
+}
+
 pub fn decode_body<T: prost::Message + Default>(
     body_bytes: bytes::Bytes,
-    content_type: &str,
+    grpc_content_type: GrpcWebContentType,
 ) -> (T, bytes::Bytes) {
-    let mut body = body_bytes;
-    if content_type == "application/grpc-web-text+proto" {
-        body = base64::decode(body).unwrap().into()
-    }
+    let mut body = match grpc_content_type {
+        // only "application/grpc-web-text+proto" needs to be base64 decoded, the rest is handled as-is
+        GrpcWebContentType::GrpcWebTextProto => base64::decode(body_bytes).unwrap().into(),
+        _ => body_bytes,
+    };
 
     body.advance(1);
     let len = body.get_u32();
@@ -53,15 +64,19 @@ pub fn decode_body<T: prost::Message + Default>(
 
 /// This function uses the `offchain::http` API to query the remote endpoint information,
 ///   and returns the JSON response as vector of bytes.
+///
+/// return:
+/// - the body, as raw bytes
+/// - the Content-Type Header: needed to know how to deserialize(cf decode_body)
 pub fn fetch_from_remote_grpc_web(
     body_bytes: bytes::Bytes,
     url: &str,
-) -> Result<bytes::Bytes, http::Error> {
+) -> Result<(bytes::Bytes, GrpcWebContentType), http::Error> {
     // We want to keep the offchain worker execution time reasonable, so we set a hard-coded
-    // deadline to 2s to complete the external call.
+    // deadline to 5s to complete the external call.
     // You can also wait idefinitely for the response, however you may still get a timeout
     // coming from the host machine.
-    let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
+    let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
     log::info!(
         "fetch_from_remote_grpc_web: sending body b64: {}",
@@ -113,6 +128,16 @@ pub fn fetch_from_remote_grpc_web(
         "[fetch_from_remote_grpc_web] status code: {}",
         response.code
     );
+    let content_type = response.headers().find("content-type").unwrap();
+    let grpc_content_type = match content_type {
+        // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
+        "application/grpc-web" => GrpcWebContentType::GrpcWeb,
+        "application/grpc-web+proto" => GrpcWebContentType::GrpcWeb,
+        // BUT "application/grpc-web-text+proto" is base64 encoded
+        "application/grpc-web-text+proto" => GrpcWebContentType::GrpcWebTextProto,
+        _ => GrpcWebContentType::Unknown,
+    };
+    // DEBUG: list headers
     let mut headers_it = response.headers().into_iter();
     while headers_it.next() {
         let header = headers_it.current().unwrap();
@@ -132,9 +157,8 @@ pub fn fetch_from_remote_grpc_web(
         return Err(http::Error::Unknown);
     }
 
-    // TODO handle like parse_price
     let body_bytes = response.body().collect::<bytes::Bytes>();
-    return Ok(body_bytes);
+    return Ok((body_bytes, grpc_content_type));
 }
 
 #[cfg(test)]

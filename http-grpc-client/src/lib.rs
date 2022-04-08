@@ -3,7 +3,6 @@
 use bytes::Buf;
 use bytes::BufMut;
 use sp_runtime::offchain::{http, Duration};
-use sp_std::borrow::ToOwned;
 use sp_std::default::Default;
 use sp_std::str;
 use sp_std::vec;

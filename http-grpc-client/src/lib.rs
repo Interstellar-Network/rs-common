@@ -78,7 +78,8 @@ pub fn fetch_from_remote_grpc_web(
     let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
     log::info!(
-        "fetch_from_remote_grpc_web: sending body b64: {}",
+        "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
+        url,
         base64::encode(&body_bytes)
     );
 

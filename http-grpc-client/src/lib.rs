@@ -75,10 +75,11 @@ pub fn fetch_from_remote_grpc_web(
     // deadline to 5s to complete the external call.
     // You can also wait idefinitely for the response, however you may still get a timeout
     // coming from the host machine.
-    let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
+    let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(10_000));
 
     log::info!(
-        "fetch_from_remote_grpc_web: sending body b64: {}",
+        "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
+        url,
         base64::encode(&body_bytes)
     );
 

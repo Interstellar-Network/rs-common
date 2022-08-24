@@ -10,9 +10,9 @@ log = { version = "0.4", default-features = false }
 base64 = { default-features = false, features = ["alloc"], version = "0.13" }
 bytes = { version = "1.1.0", default-features = false }
 # https://github.com/tokio-rs/prost#using-prost-in-a-no_std-crate
-prost = { version = "0.9", default-features = false, features = ["prost-derive"] }
+prost = { version = "0.11", default-features = false, features = ["prost-derive"] }
 # "Only necessary if using Protobuf well-known types:"
-# prost-types = { version = "0.9", default-features = false }
+# prost-types = { version = "0.11", default-features = false }
 
 sp-io = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
 sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }

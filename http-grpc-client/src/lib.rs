@@ -80,7 +80,11 @@ pub fn decode_body_grpc_web<T: prost::Message + Default>(
     body_bytes: bytes::Bytes,
     grpc_content_type: ContentType,
 ) -> T {
-    assert!(grpc_content_type == ContentType::GrpcWebTextProto || grpc_content_type == ContentType::GrpcWeb, "decode_body_grpc_web MUST be grpc-web!");
+    assert!(
+        grpc_content_type == ContentType::GrpcWebTextProto
+            || grpc_content_type == ContentType::GrpcWeb,
+        "decode_body_grpc_web MUST be grpc-web!"
+    );
 
     let mut body = match grpc_content_type {
         // only "application/grpc-web-text+proto" needs to be base64 decoded, the rest is handled as-is
@@ -100,13 +104,31 @@ pub fn decode_body_grpc_web<T: prost::Message + Default>(
     reply
 }
 
-pub fn decode_body_json<'a, T: serde::Deserialize<'a>>(
-    body_bytes: &'a bytes::Bytes,
+/// Parse a node RPC response
+/// It MUST be a JSON encoded hex string!
+/// eg body_bytes = "Object({"id": String("1"), "jsonrpc": String("2.0"), "result": String("0xb8516d626945354373524d4a7565316b5455784d5a5162694e394a794e5075384842675a346138726a6d344353776602000000b8516d5a7870436964427066624c74675534796434574a314d7654436e5539316e7867394132446137735a7069636d0a000000")}"
+pub fn decode_rpc_json<T: serde::de::DeserializeOwned>(
+    body_bytes: bytes::Bytes,
     grpc_content_type: ContentType,
 ) -> T {
-    assert!(grpc_content_type == ContentType::Json, "decode_body_json MUST be json!");
+    assert!(
+        grpc_content_type == ContentType::Json,
+        "decode_body_json MUST be json!"
+    );
 
-    let reply: T = serde_json::from_slice(body_bytes).expect("serde_json failed");
+    // first: parse to untyped JSON
+    // MUST match the schema: "id" + "jsonrpc" + etc; cf docstring
+    let body_json: serde_json::Value =
+        serde_json::from_slice(&body_bytes).expect("serde_json [1] failed");
+    log::info!("[fetch_from_remote_grpc_web] body_json: {}", body_json,);
+
+    // then we can deserialize the hex-encoded "result" field
+    // NOTE: MUST remove the first 2 chars "0x" else:
+    // "thread '<unnamed>' panicked at 'called `Result::unwrap()` on an `Err` value: InvalidHexCharacter { c: 'x', index: 1 }'"
+    let data_bytes = hex::decode(&body_json["result"].as_str().unwrap()[2..]).unwrap();
+
+    // finally can deserialize to the desired Struct
+    let reply: T = serde_json::from_slice(&data_bytes).expect("serde_json [2] failed");
 
     reply
 }
@@ -121,6 +143,7 @@ pub fn decode_body_json<'a, T: serde::Deserialize<'a>>(
 pub fn fetch_from_remote_grpc_web(
     body_bytes: bytes::Bytes,
     url: &str,
+    request_content_type: ContentType,
 ) -> Result<(bytes::Bytes, ContentType), http::Error> {
     // We want to keep the offchain worker execution time reasonable, so we set a hard-coded
     // deadline to 5s to complete the external call.
@@ -152,9 +175,18 @@ pub fn fetch_from_remote_grpc_web(
     //
     // eg:
     // printf '\x00\x00\x00\x00\x05\x08\xe0\x01\x10\x60' | curl -skv -H "Content-Type: application/grpc-web+proto" -H "X-Grpc-Web: 1" -H "Accept: application/grpc-web-text+proto" -X POST --data-binary @- http://127.0.0.1:3000/interstellarpbapigarble.SkcdApi/GenerateSkcdDisplay
-    let request = http::Request::post(url, vec![body_bytes])
-        .add_header("Content-Type", "application/grpc-web")
-        .add_header("X-Grpc-Web", "1");
+    let mut request = http::Request::post(url, vec![body_bytes]);
+
+    match request_content_type {
+        ContentType::GrpcWeb => {
+            request = request.add_header("Content-Type", "application/grpc-web");
+            request = request.add_header("X-Grpc-Web", "1");
+        }
+        ContentType::Json => {
+            request = request.add_header("Content-Type", "application/json;charset=utf-8");
+        }
+        _ => panic!("request_content_type SHOULD be Json or GrpcWeb"),
+    }
 
     // We set the deadline for sending of the request, note that awaiting response can
     // have a separate deadline. Next we send the request, before that it's also possible
@@ -175,11 +207,13 @@ pub fn fetch_from_remote_grpc_web(
         .try_wait(deadline)
         .map_err(|_| http::Error::DeadlineReached)??;
 
-    log::info!(
-        "[fetch_from_remote_grpc_web] status code: {}",
-        response.code
-    );
+    let response_code = response.code;
     let content_type = response.headers().find("content-type").unwrap();
+    log::info!(
+        "[fetch_from_remote_grpc_web] status code: {}, content_type: {}",
+        response_code,
+        content_type
+    );
     let grpc_content_type = match content_type {
         // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
         "application/grpc-web" => ContentType::GrpcWeb,
@@ -188,6 +222,7 @@ pub fn fetch_from_remote_grpc_web(
         "application/grpc-web-text+proto" => ContentType::GrpcWebTextProto,
         // classic JSON
         "application/json" => ContentType::Json,
+        "application/json; charset=utf-8" => ContentType::Json,
         _ => ContentType::Unknown,
     };
     // DEBUG: list headers
@@ -218,6 +253,7 @@ pub fn fetch_from_remote_grpc_web(
 pub fn fetch_from_remote_grpc_web(
     body_bytes: bytes::Bytes,
     url: &str,
+    request_content_type: ContentType,
 ) -> Result<(bytes::Bytes, ContentType), itc_rest_client::error::Error> {
     use sgx_tstd::{collections::HashMap, string::ToString};
 
@@ -289,8 +325,16 @@ pub fn fetch_from_remote_grpc_web(
     request.method(http_req::request::Method::POST);
 
     let mut request_headers = http_req::response::Headers::default_http(&uri);
-    request_headers.insert("Content-Type", "application/grpc-web");
-    request_headers.insert("X-Grpc-Web", "1");
+    match request_content_type {
+        ContentType::GrpcWeb => {
+            request_headers.insert("Content-Type", "application/grpc-web");
+            request_headers.insert("X-Grpc-Web", "1");
+        }
+        ContentType::Json => {
+            request_headers.insert("Content-Type", "application/json;charset=utf-8");
+        }
+        _ => panic!("request_content_type SHOULD be Json or GrpcWeb"),
+    }
 
     request.body(&body_bytes);
     request_headers.insert("Content-Length", &body_bytes.len().to_string());
@@ -301,11 +345,12 @@ pub fn fetch_from_remote_grpc_web(
     // let response = http_client.execute_send_request(&mut request, &mut write)?;
     let response = request.send(&mut response_bytes).unwrap(); // TODO .map_err(Error::HttpReqError)
 
-    log::info!(
-        "[fetch_from_remote_grpc_web] status code: {}",
-        response.status_code()
-    );
     let content_type_header = response.headers().get("content-type").unwrap();
+    log::info!(
+        "[fetch_from_remote_grpc_web] status code: {}, content_type: {}",
+        response.status_code(),
+        content_type_header
+    );
     let content_type = match content_type_header.as_str() {
         // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
         "application/grpc-web" => ContentType::GrpcWeb,
@@ -314,6 +359,7 @@ pub fn fetch_from_remote_grpc_web(
         "application/grpc-web-text+proto" => ContentType::GrpcWebTextProto,
         // classic JSON
         "application/json" => ContentType::Json,
+        "application/json; charset=utf-8" => ContentType::Json,
         _ => ContentType::Unknown,
     };
     // TODO DEBUG: list headers

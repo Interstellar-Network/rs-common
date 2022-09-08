@@ -29,7 +29,7 @@ use sp_runtime::offchain::{http, Duration};
 // https://github.com/hyperium/tonic/blob/01e5be508051eebf19c233d48b57797a17331383/tonic-web/tests/integration/tests/grpc_web.rs#L93
 // also: https://github.com/grpc/grpc-web/issues/152
 // param: dyn prost::Message, eg interstellarpbapigarble::GarbleIpfsRequest etc
-pub fn encode_body<T: prost::Message>(input: T) -> bytes::Bytes {
+pub fn encode_body_grpc_web<T: prost::Message>(input: T) -> bytes::Bytes {
     let mut buf = bytes::BytesMut::with_capacity(1024);
     buf.reserve(5);
     unsafe {
@@ -48,21 +48,43 @@ pub fn encode_body<T: prost::Message>(input: T) -> bytes::Bytes {
     buf.split_to(len + 5).freeze()
 }
 
-pub enum GrpcWebContentType {
+#[derive(PartialEq)]
+pub enum ContentType {
     /// "application/grpc-web" or "application/grpc-web+proto"
     GrpcWeb,
     /// "application/grpc-web-text+proto"
     GrpcWebTextProto,
+    /// "application/json"
+    Json,
     Unknown,
 }
 
-pub fn decode_body<T: prost::Message + Default>(
+/// Decode either:
+/// - a gRPC-web encoded body into a struct
+/// - a json raw bytes into a struct
+/// This is NOT integrated into "fetch_from_remote_grpc_web" b/c the response Struct is declared by the clients.
+///
+// pub fn decode_body<T: prost::Message + Default>(
+//     body_bytes: bytes::Bytes,
+//     grpc_content_type: ContentType,
+// ) -> T {
+//     let mut body = match grpc_content_type {
+//         // only "application/grpc-web-text+proto" needs to be base64 decoded, the rest is handled as-is
+//         ContentType::GrpcWebTextProto | ContentType::GrpcWeb => return decode_body_grpc_web(body_bytes, grpc_content_type),
+//         ContentType::Json => return decode_body_json(body_bytes, grpc_content_type),
+//         _ => panic!("decode_body: unsupported ContentType"),
+//     };
+// }
+
+pub fn decode_body_grpc_web<T: prost::Message + Default>(
     body_bytes: bytes::Bytes,
-    grpc_content_type: GrpcWebContentType,
-) -> (T, bytes::Bytes) {
+    grpc_content_type: ContentType,
+) -> T {
+    assert!(grpc_content_type == ContentType::GrpcWebTextProto || grpc_content_type == ContentType::GrpcWeb, "decode_body_grpc_web MUST be grpc-web!");
+
     let mut body = match grpc_content_type {
         // only "application/grpc-web-text+proto" needs to be base64 decoded, the rest is handled as-is
-        GrpcWebContentType::GrpcWebTextProto => base64::decode(body_bytes).unwrap().into(),
+        ContentType::GrpcWebTextProto => base64::decode(body_bytes).unwrap().into(),
         _ => body_bytes,
     };
 
@@ -71,9 +93,22 @@ pub fn decode_body<T: prost::Message + Default>(
     let reply = T::decode(&mut body.split_to(len as usize)).expect("decode");
     body.advance(5);
 
-    let trailers = body;
+    // TODO? trailers?
+    // let _trailers = body;
+    // (reply, trailers)
 
-    (reply, trailers)
+    reply
+}
+
+pub fn decode_body_json<'a, T: serde::Deserialize<'a>>(
+    body_bytes: &'a bytes::Bytes,
+    grpc_content_type: ContentType,
+) -> T {
+    assert!(grpc_content_type == ContentType::Json, "decode_body_json MUST be json!");
+
+    let reply: T = serde_json::from_slice(body_bytes).expect("serde_json failed");
+
+    reply
 }
 
 /// This function uses the `offchain::http` API to query the remote endpoint information,
@@ -86,7 +121,7 @@ pub fn decode_body<T: prost::Message + Default>(
 pub fn fetch_from_remote_grpc_web(
     body_bytes: bytes::Bytes,
     url: &str,
-) -> Result<(bytes::Bytes, GrpcWebContentType), http::Error> {
+) -> Result<(bytes::Bytes, ContentType), http::Error> {
     // We want to keep the offchain worker execution time reasonable, so we set a hard-coded
     // deadline to 5s to complete the external call.
     // You can also wait idefinitely for the response, however you may still get a timeout
@@ -147,11 +182,13 @@ pub fn fetch_from_remote_grpc_web(
     let content_type = response.headers().find("content-type").unwrap();
     let grpc_content_type = match content_type {
         // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
-        "application/grpc-web" => GrpcWebContentType::GrpcWeb,
-        "application/grpc-web+proto" => GrpcWebContentType::GrpcWeb,
+        "application/grpc-web" => ContentType::GrpcWeb,
+        "application/grpc-web+proto" => ContentType::GrpcWeb,
         // BUT "application/grpc-web-text+proto" is base64 encoded
-        "application/grpc-web-text+proto" => GrpcWebContentType::GrpcWebTextProto,
-        _ => GrpcWebContentType::Unknown,
+        "application/grpc-web-text+proto" => ContentType::GrpcWebTextProto,
+        // classic JSON
+        "application/json" => ContentType::Json,
+        _ => ContentType::Unknown,
     };
     // DEBUG: list headers
     let mut headers_it = response.headers().into_iter();
@@ -181,7 +218,7 @@ pub fn fetch_from_remote_grpc_web(
 pub fn fetch_from_remote_grpc_web(
     body_bytes: bytes::Bytes,
     url: &str,
-) -> Result<(bytes::Bytes, GrpcWebContentType), itc_rest_client::error::Error> {
+) -> Result<(bytes::Bytes, ContentType), itc_rest_client::error::Error> {
     use sgx_tstd::{collections::HashMap, string::ToString};
 
     // We want to keep the offchain worker execution time reasonable, so we set a hard-coded
@@ -268,14 +305,16 @@ pub fn fetch_from_remote_grpc_web(
         "[fetch_from_remote_grpc_web] status code: {}",
         response.status_code()
     );
-    let content_type = response.headers().get("content-type").unwrap();
-    let grpc_content_type = match content_type.as_str() {
+    let content_type_header = response.headers().get("content-type").unwrap();
+    let content_type = match content_type_header.as_str() {
         // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
-        "application/grpc-web" => GrpcWebContentType::GrpcWeb,
-        "application/grpc-web+proto" => GrpcWebContentType::GrpcWeb,
+        "application/grpc-web" => ContentType::GrpcWeb,
+        "application/grpc-web+proto" => ContentType::GrpcWeb,
         // BUT "application/grpc-web-text+proto" is base64 encoded
-        "application/grpc-web-text+proto" => GrpcWebContentType::GrpcWebTextProto,
-        _ => GrpcWebContentType::Unknown,
+        "application/grpc-web-text+proto" => ContentType::GrpcWebTextProto,
+        // classic JSON
+        "application/json" => ContentType::Json,
+        _ => ContentType::Unknown,
     };
     // TODO DEBUG: list headers
     // let mut headers_it = response.headers().iter();
@@ -297,7 +336,7 @@ pub fn fetch_from_remote_grpc_web(
     }
 
     // let response_bytes = response.body().collect::<bytes::Bytes>();
-    return Ok((bytes::Bytes::from(response_bytes), grpc_content_type));
+    return Ok((bytes::Bytes::from(response_bytes), content_type));
 }
 
 #[cfg(test)]

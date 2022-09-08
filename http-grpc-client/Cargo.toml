@@ -11,6 +11,8 @@ base64 = { default-features = false, features = ["alloc"], version = "0.13" }
 bytes = { version = "1.1.0", default-features = false }
 # https://github.com/tokio-rs/prost#using-prost-in-a-no_std-crate
 prost = { version = "0.11", default-features = false, features = ["prost-derive"] }
+serde = { version = '1.0', default-features = false }
+serde_json = { version = '1.0', default-features = false, features = ['alloc'] }
 # "Only necessary if using Protobuf well-known types:"
 # prost-types = { version = "0.11", default-features = false }
 

@@ -107,7 +107,7 @@ pub fn decode_body_grpc_web<T: prost::Message + Default>(
 /// Parse a node RPC response
 /// It MUST be a JSON encoded hex string!
 /// eg body_bytes = "Object({"id": String("1"), "jsonrpc": String("2.0"), "result": String("0xb8516d626945354373524d4a7565316b5455784d5a5162694e394a794e5075384842675a346138726a6d344353776602000000b8516d5a7870436964427066624c74675534796434574a314d7654436e5539316e7867394132446137735a7069636d0a000000")}"
-pub fn decode_rpc_json<T: serde::de::DeserializeOwned>(
+pub fn decode_rpc_json<T: codec::Decode>(
     body_bytes: bytes::Bytes,
     grpc_content_type: ContentType,
 ) -> T {
@@ -126,9 +126,10 @@ pub fn decode_rpc_json<T: serde::de::DeserializeOwned>(
     // NOTE: MUST remove the first 2 chars "0x" else:
     // "thread '<unnamed>' panicked at 'called `Result::unwrap()` on an `Err` value: InvalidHexCharacter { c: 'x', index: 1 }'"
     let data_bytes = hex::decode(&body_json["result"].as_str().unwrap()[2..]).unwrap();
+    let mut data_slice: &[u8] = &data_bytes;
 
     // finally can deserialize to the desired Struct
-    let reply: T = serde_json::from_slice(&data_bytes).expect("serde_json [2] failed");
+    let reply = T::decode(&mut data_slice).expect("decode failed");
 
     reply
 }

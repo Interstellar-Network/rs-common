@@ -13,7 +13,7 @@ bytes = { version = "1.1.0", default-features = false }
 prost = { version = "0.11", default-features = false, features = ["prost-derive"] }
 serde = { version = '1.0', default-features = false }
 serde_json = { version = '1.0', default-features = false, features = ['alloc'] }
-hex = { version = "0.4", default-features = false }
+hex = { version = "0.4", default-features = false, features = ['alloc'] }
 codec = { package = "parity-scale-codec", version = "^3.1", default-features = false, features = [
 	"derive",
 ] }
@@ -21,9 +21,9 @@ codec = { package = "parity-scale-codec", version = "^3.1", default-features = f
 # prost-types = { version = "0.11", default-features = false }
 
 # when used via a Subtrate offchain_worker
-sp-io = { optional = true, default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
-sp-runtime = { optional = true, version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
-sp-std = { optional = true, default-features = false, version = "4.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
+sp-io = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
+sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
+sp-std = { default-features = false, version = "4.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
 
 # when used in SGX enclave
 # cf app-libs/exchange-oracle/Cargo.toml
@@ -49,9 +49,9 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"hex/std",
-	# TODO?
-	"itc-rest-client/std",
 	"url",
+	# TODO?
+	# "itc-rest-client/std",
 ]
 # core/rest-client/Cargo.toml
 sgx = [

@@ -19,7 +19,7 @@ use itc_rest_client::http_client::HttpClient;
 use itc_rest_client::http_client::SendHttpRequest;
 #[cfg(all(not(feature = "std"), feature = "sgx"))]
 use itc_rest_client::sgx_reexport_prelude::*;
-#[cfg(all(not(feature = "sgx"), feature = "std"))]
+#[cfg(not(feature = "sgx"))]
 use sp_runtime::offchain::{http, Duration};
 
 // we CAN NOT just send the raw encoded protobuf(eg using GarbleIpfsRequest{}.encode())
@@ -140,7 +140,7 @@ pub fn decode_rpc_json<T: codec::Decode>(
 /// return:
 /// - the body, as raw bytes
 /// - the Content-Type Header: needed to know how to deserialize(cf decode_body)
-#[cfg(all(not(feature = "sgx"), feature = "std"))]
+#[cfg(not(feature = "sgx"))]
 pub fn fetch_from_remote_grpc_web(
     body_bytes: bytes::Bytes,
     url: &str,
@@ -176,7 +176,7 @@ pub fn fetch_from_remote_grpc_web(
     //
     // eg:
     // printf '\x00\x00\x00\x00\x05\x08\xe0\x01\x10\x60' | curl -skv -H "Content-Type: application/grpc-web+proto" -H "X-Grpc-Web: 1" -H "Accept: application/grpc-web-text+proto" -X POST --data-binary @- http://127.0.0.1:3000/interstellarpbapigarble.SkcdApi/GenerateSkcdDisplay
-    let mut request = http::Request::post(url, vec![body_bytes]);
+    let mut request = http::Request::post(url, sp_std::vec![body_bytes]);
 
     match request_content_type {
         ContentType::GrpcWeb => {

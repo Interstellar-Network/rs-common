@@ -21,9 +21,9 @@ codec = { package = "parity-scale-codec", version = "^3.1", default-features = f
 # prost-types = { version = "0.11", default-features = false }
 
 # when used via a Subtrate offchain_worker
-sp-io = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
-sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
-sp-std = { default-features = false, version = "4.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.26" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.27" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.27" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.27" }
 
 # when used in SGX enclave
 # cf app-libs/exchange-oracle/Cargo.toml
@@ -34,7 +34,7 @@ url = { version = "2.0.0", optional = true }
 url_sgx = { package = "url", git = "https://github.com/mesalock-linux/rust-url-sgx", tag = "sgx_1.1.3", optional = true }
 
 # TEMP needed for https://github.com/paritytech/substrate/pull/11314
-# which was merge "Commits on May 16, 2022"(ie AFTER branch = "polkadot-v0.9.26" or 27)
+# which was merge "Commits on May 16, 2022"(ie AFTER branch = "polkadot-v0.9.27")
 # frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "4fd77a94e1aa516c7eb9f6a0428f81637fe87f07" }
 # error[E0603]: module `group` is private
 #    --> /home/pratn/.cargo/git/checkouts/substrate-7e08433d4c370a21/4fd77a9/frame/support/procedural/tools/src/syn_ext.rs:50:53

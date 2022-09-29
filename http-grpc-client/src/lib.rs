@@ -48,7 +48,7 @@ pub fn encode_body_grpc_web<T: prost::Message>(input: T) -> bytes::Bytes {
     buf.split_to(len + 5).freeze()
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum ContentType {
     /// "application/grpc-web" or "application/grpc-web+proto"
     GrpcWeb,
@@ -129,9 +129,7 @@ pub fn decode_rpc_json<T: codec::Decode>(
     let mut data_slice: &[u8] = &data_bytes;
 
     // finally can deserialize to the desired Struct
-    let reply = T::decode(&mut data_slice).expect("decode failed");
-
-    reply
+    T::decode(&mut data_slice).expect("decode failed")
 }
 
 /// This function uses the `offchain::http` API to query the remote endpoint information,
@@ -247,7 +245,7 @@ pub fn fetch_from_remote_grpc_web(
     }
 
     let response_bytes = response.body().collect::<bytes::Bytes>();
-    return Ok((response_bytes, grpc_content_type));
+    Ok((response_bytes, grpc_content_type))
 }
 
 #[cfg(all(not(feature = "std"), feature = "sgx"))]

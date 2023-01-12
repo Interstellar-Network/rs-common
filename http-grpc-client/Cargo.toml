@@ -28,8 +28,11 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 # when used in SGX enclave
 # cf app-libs/exchange-oracle/Cargo.toml
 # TODO? git = "https://github.com/integritee-network/worker"
-itc-rest-client = { optional = true, default-features = false, path = "../../core/rest-client" }
-sgx_tstd = { optional = true, rev = "v1.1.3", git = "https://github.com/apache/teaclave-sgx-sdk.git"}
+# cf https://github.com/integritee-network/worker/blob/6f8d6baa20748d19853ef16cd00917bfb56029fc/core/rest-client/Cargo.toml
+http_req_sgx = { package = "http_req", optional = true, default-features = false, features = ["rust-tls", "sgx"], git = "https://github.com/integritee-network/http_req"}
+# default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In any case, rustls works fine
+http_req_std = { package = "http_req", optional = true, features = ["rust-tls"], branch = "master", git = "https://github.com/integritee-network/http_req" }
+itc-rest-client = { optional = true, default-features = false, git = "https://github.com/integritee-network/worker", rev = "v0.10.0" }
 url = { version = "2.0.0", optional = true }
 url_sgx = { package = "url", git = "https://github.com/mesalock-linux/rust-url-sgx", tag = "sgx_1.1.3", optional = true }
 
@@ -49,13 +52,13 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"hex/std",
+	"itc-rest-client/std",
+	"http_req_std",
 	"url",
-	# TODO?
-	# "itc-rest-client/std",
 ]
 # core/rest-client/Cargo.toml
 sgx = [
-	"sgx_tstd",
     "itc-rest-client/sgx",
+	"http_req_sgx",
 	"url_sgx",
 ]

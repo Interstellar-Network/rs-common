@@ -2,6 +2,8 @@
 
 extern crate alloc;
 
+use alloc::borrow::ToOwned;
+use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;

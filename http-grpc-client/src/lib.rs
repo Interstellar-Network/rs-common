@@ -2,21 +2,12 @@
 
 extern crate alloc;
 
-// https://github.com/integritee-network/worker/blob/master/core/rest-client/src/lib.rs#L30
-#[cfg(all(not(feature = "std"), feature = "sgx"))]
-use http_req_sgx as http_req;
-#[cfg(all(not(feature = "std"), feature = "sgx"))]
-use url_sgx as url;
-
-#[cfg(not(feature = "sgx"))]
-use http_req_std as http_req;
-
 use alloc::string::ToString;
+use alloc::vec;
 use alloc::vec::Vec;
 use bytes::{Buf, BufMut};
 use core::time::Duration;
-use itc_rest_client::http_client::HttpClient;
-use itc_rest_client::http_client::SendHttpRequest;
+use snafu::prelude::*;
 
 // we CAN NOT just send the raw encoded protobuf(eg using GarbleIpfsRequest{}.encode())
 // b/c that returns errors like
@@ -52,7 +43,17 @@ pub enum ContentType {
     GrpcWebTextProto,
     /// "application/json"
     Json,
-    Unknown,
+    MultipartFormData,
+    TextPlain,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum RequestMethod {
+    Post,
+    Get,
+    Put,
+    Patch,
+    Delete,
 }
 
 /// Decode either:
@@ -128,59 +129,128 @@ pub fn decode_rpc_json<T: codec::Decode>(
     T::decode(&mut data_slice).expect("decode failed")
 }
 
-pub fn fetch_from_remote_grpc_web(
-    body_bytes: bytes::Bytes,
+#[derive(Debug, Snafu)]
+pub enum InterstellarHttpClientError {
+    HttpError { status_code: u16 },
+    IoError,
+    Timeout,
+    UnknownResponseContentType { content_type: String },
+}
+
+/// This function uses the `offchain::http` API to query the remote endpoint information,
+///   and returns the JSON response as vector of bytes.
+///
+/// return:
+/// - the body, as raw bytes
+/// - the Content-Type Header: needed to know how to deserialize(cf decode_body)
+///
+/// IMPORTANT: if in the future you need to use http_req(or http_req_sgx): CHECK GIT HISTORY
+#[cfg(feature = "sp_offchain")]
+pub fn sp_offchain_fetch_from_remote_grpc_web(
+    body_bytes: Option<bytes::Bytes>,
     url: &str,
-    request_content_type: ContentType,
-    deadline_duration: Duration,
-) -> Result<(bytes::Bytes, ContentType), itc_rest_client::error::Error> {
+    request_method: RequestMethod,
+    request_content_type: Option<ContentType>,
+    timeout_duration: Duration,
+) -> Result<(bytes::Bytes, ContentType), InterstellarHttpClientError> {
     log::info!(
         "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
         url,
-        base64::encode(&body_bytes)
+        if let Some(ref body_bytes) = body_bytes {
+            base64::encode(body_bytes)
+        } else {
+            base64::encode(&[])
+        }
     );
 
-    let http_client = HttpClient::new(
-        itc_rest_client::http_client::DefaultSend {},
-        false,
-        Some(deadline_duration),
-        None,
-        None,
-    );
+    // Initiate an external HTTP GET request.
+    // This is using high-level wrappers from `sp_runtime`, for the low-level calls that
+    // you can find in `sp_io`. The API is trying to be similar to `reqwest`, but
+    // since we are running in a custom WASM execution environment we can't simply
+    // import the library here.
+    //
+    // cf https://github.com/hyperium/tonic/blob/master/tonic-web/tests/integration/tests/grpc_web.rs
+    // syntax = "proto3";
+    // package test;
+    // service Test {
+    //		rpc SomeRpc(Input) returns (Output);
+    // -> curl http://127.0.0.1:3000/test.Test/SomeRpc
+    //
+    // NOTE application/grpc-web == application/grpc-web+proto
+    //      application/grpc-web-text = base64
+    //
+    // eg:
+    // printf '\x00\x00\x00\x00\x05\x08\xe0\x01\x10\x60' | curl -skv -H "Content-Type: application/grpc-web+proto" -H "X-Grpc-Web: 1" -H "Accept: application/grpc-web-text+proto" -X POST --data-binary @- http://127.0.0.1:3000/interstellarpbapigarble.SkcdApi/GenerateSkcdDisplay
+    let mut request = sp_runtime::offchain::http::Request::default();
+    request = request.url(url);
 
-    let url = url::Url::parse(url).unwrap();
-
-    let uri = http_req::uri::Uri::try_from(url.as_str()).unwrap();
-
-    let mut request = http_req::request::Request::new(&uri);
-    request.method(http_req::request::Method::POST);
-
-    let mut request_headers = http_req::response::Headers::default_http(&uri);
-    match request_content_type {
-        ContentType::GrpcWeb => {
-            request_headers.insert("Content-Type", "application/grpc-web");
-            request_headers.insert("X-Grpc-Web", "1");
+    match request_method {
+        RequestMethod::Post => {
+            request = request.method(sp_runtime::offchain::http::Method::Post);
         }
-        ContentType::Json => {
-            request_headers.insert("Content-Type", "application/json;charset=utf-8");
+        RequestMethod::Get => {
+            request = request.method(sp_runtime::offchain::http::Method::Get);
         }
-        _ => panic!("request_content_type SHOULD be Json or GrpcWeb"),
+        RequestMethod::Put => {
+            request = request.method(sp_runtime::offchain::http::Method::Put);
+        }
+        RequestMethod::Patch => {
+            request = request.method(sp_runtime::offchain::http::Method::Patch);
+        }
+        RequestMethod::Delete => {
+            request = request.method(sp_runtime::offchain::http::Method::Delete);
+        }
     }
 
-    request.body(&body_bytes);
-    request_headers.insert("Content-Length", &body_bytes.len().to_string());
+    match request_content_type {
+        Some(ContentType::GrpcWeb) => {
+            request = request.add_header("Content-Type", "application/grpc-web");
+            request = request.add_header("X-Grpc-Web", "1");
+        }
+        Some(ContentType::Json) => {
+            request = request.add_header("Content-Type", "application/json;charset=utf-8");
+        }
+        Some(ContentType::MultipartFormData) => {
+            request =
+                request.add_header("Content-Type", "multipart/form-data;boundary=\"boundary\"");
+        }
+        None | _ => {}
+    }
 
-    let mut response_bytes = Vec::new();
-    // let response = http_client.execute_send_request(&mut request, &mut write)?;
-    let response = request.send(&mut response_bytes).unwrap(); // TODO .map_err(Error::HttpReqError)
+    // NOTE: we CAN have a POST request without a body; eg IPFS CAT
+    if let Some(body_bytes) = body_bytes {
+        request = request.body(vec![body_bytes]);
+    }
 
-    let content_type_header = response.headers().get("content-type").unwrap();
+    // We set the deadline for sending of the request, note that awaiting response can
+    // have a separate deadline. Next we send the request, before that it's also possible
+    // to alter request headers or stream body content in case of non-GET requests.
+    // NOTE: 'http_request_start can be called only in the offchain worker context'
+    let pending = request
+        // .deadline(timeout_duration)
+        .send()
+        .map_err(|_| InterstellarHttpClientError::IoError)?;
+
+    // The request is already being processed by the host, we are free to do anything
+    // else in the worker (we can send multiple concurrent requests too).
+    // At some point however we probably want to check the response though,
+    // so we can block current thread and wait for it to finish.
+    // Note that since the request is being driven by the host, we don't have to wait
+    // for the request to have it complete, we will just not read the response.
+    let mut response = pending
+        // .try_wait(timeout_duration)
+        .try_wait(None)
+        .map_err(|_| InterstellarHttpClientError::Timeout)?
+        .map_err(|_| InterstellarHttpClientError::Timeout)?;
+
+    let response_code = response.code;
+    let response_content_type_str = response.headers().find("content-type").unwrap();
     log::info!(
         "[fetch_from_remote_grpc_web] status code: {}, content_type: {}",
-        response.status_code(),
-        content_type_header
+        response_code,
+        response_content_type_str
     );
-    let content_type = match content_type_header.as_str() {
+    let response_content_type_type = match response_content_type_str {
         // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
         "application/grpc-web" => ContentType::GrpcWeb,
         "application/grpc-web+proto" => ContentType::GrpcWeb,
@@ -189,22 +259,37 @@ pub fn fetch_from_remote_grpc_web(
         // classic JSON
         "application/json" => ContentType::Json,
         "application/json; charset=utf-8" => ContentType::Json,
-        _ => ContentType::Unknown,
+        "text/plain" => ContentType::TextPlain,
+        _ => {
+            return Err(InterstellarHttpClientError::UnknownResponseContentType {
+                content_type: response_content_type_str.to_owned(),
+            })
+        }
     };
+    // DEBUG: list headers
+    // let mut headers_it = response.headers().into_iter();
+    // while headers_it.next() {
+    //     let header = headers_it.current().unwrap();
+    //     log::info!(
+    //         "[fetch_from_remote_grpc_web] header: {} {}",
+    //         header.0,
+    //         header.1
+    //     );
+    // }
 
     // Let's check the status code before we proceed to reading the response.
-    if !response.status_code().is_success() {
+    if response.code != 200 {
         log::warn!(
             "[fetch_from_remote_grpc_web] Unexpected status code: {}",
-            response.status_code()
+            response.code
         );
-        return Err(itc_rest_client::error::Error::HttpError(
-            u16::from(response.status_code()),
-            "Unknown".to_string(),
-        ));
+        return Err(InterstellarHttpClientError::HttpError {
+            status_code: response.code,
+        });
     }
 
-    return Ok((bytes::Bytes::from(response_bytes), content_type));
+    let response_bytes = response.body().collect::<bytes::Bytes>();
+    Ok((response_bytes, response_content_type_type))
 }
 
 #[cfg(test)]

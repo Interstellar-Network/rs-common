@@ -7,3 +7,9 @@ members = [
     "pallets/tx-registry",
     "pallets/tx-validation"
 ]
+
+################################################################################
+# [patch."https://github.com/Interstellar-Network/lib-garble-rs.git"]
+# lib-garble-rs = { path = "../lib-garble-rs/lib-garble-rs/" }
+# ipfs-client-http-req = { path = "../lib-garble-rs/ipfs-client-http-req/" }
+################################################################################

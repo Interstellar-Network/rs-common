@@ -1,6 +1,6 @@
 [package]
 name = "ocw-common"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -17,48 +17,32 @@ hex = { version = "0.4", default-features = false, features = ['alloc'] }
 codec = { package = "parity-scale-codec", version = "^3.1", default-features = false, features = [
 	"derive",
 ] }
-# "Only necessary if using Protobuf well-known types:"
-# prost-types = { version = "0.11", default-features = false }
-
-# when used via a Subtrate offchain_worker
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.27" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.27" }
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.27" }
+snafu = { version = "0.7", default-features = false }
 
 # when used in SGX enclave
 # cf app-libs/exchange-oracle/Cargo.toml
 # TODO? git = "https://github.com/integritee-network/worker"
 # cf https://github.com/integritee-network/worker/blob/6f8d6baa20748d19853ef16cd00917bfb56029fc/core/rest-client/Cargo.toml
-http_req_sgx = { package = "http_req", optional = true, default-features = false, features = ["rust-tls", "sgx"], git = "https://github.com/integritee-network/http_req"}
 # default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In any case, rustls works fine
-http_req_std = { package = "http_req", optional = true, features = ["rust-tls"], branch = "master", git = "https://github.com/integritee-network/http_req" }
-itc-rest-client = { optional = true, default-features = false, git = "https://github.com/integritee-network/worker", rev = "v0.10.0" }
-url = { version = "2.0.0", optional = true }
+http_req = { package = "http_req", optional = true, default-features = false, git = "https://github.com/integritee-network/http_req"}
+url = { version = "2.0.0", optional = true, default-features = false }
 url_sgx = { package = "url", git = "https://github.com/mesalock-linux/rust-url-sgx", tag = "sgx_1.1.3", optional = true }
-
-# TEMP needed for https://github.com/paritytech/substrate/pull/11314
-# which was merge "Commits on May 16, 2022"(ie AFTER branch = "polkadot-v0.9.27")
-# frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", rev = "4fd77a94e1aa516c7eb9f6a0428f81637fe87f07" }
-# error[E0603]: module `group` is private
-#    --> /home/pratn/.cargo/git/checkouts/substrate-7e08433d4c370a21/4fd77a9/frame/support/procedural/tools/src/syn_ext.rs:50:53
-# b/c the current version is 1.0.98(cf Cargo.lock)
-# syn = "1.0.96"
+sp-runtime = { optional = true, default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.27" }
 
 [features]
 default = ["std"]
+http_req = ["url_sgx?/mesalock_sgx", "url?/default"]
+sp_offchain = ["sp-runtime"]
 std = [
 	"log/std",
-	"sp-io/std",
-	"sp-runtime/std",
-	"sp-std/std",
 	"hex/std",
-	"itc-rest-client/std",
-	"http_req_std",
+	"http_req?/rust-tls",
 	"url",
+	"sp-runtime?/std",
 ]
 # core/rest-client/Cargo.toml
 sgx = [
-    "itc-rest-client/sgx",
-	"http_req_sgx",
+	"http_req?/rust-tls",
+	"http_req?/sgx",
 	"url_sgx",
 ]

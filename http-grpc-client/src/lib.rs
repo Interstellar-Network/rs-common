@@ -294,11 +294,69 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
     Ok((response_bytes, response_content_type_type))
 }
 
+// https://github.com/mikedilger/formdata/blob/master/src/lib.rs
+// WARNING: DO NOT use "\n" as end of line: it MUST be escaped(hence '\' in this example)
+// let body_bytes = b"--boundary\r\n\
+//                 Content-Disposition: form-data; name=\"file\"; filename=\"TODO_path\"\r\n\
+//                 Content-Type: application/octet-stream\r\n\
+//                 \r\n\
+//                 TODO_content1\r\n\
+//                 TODO_content2\r\n\
+//                 --boundary--";
+pub const MULTIPART_NEW_LINE: &[u8] = b"\r\n";
+pub const MULTIPART_BOUNDARY: &[u8] = b"--boundary";
+pub const MULTIPART_CONTENT_DISPOSITION: &[u8] =
+    b"Content-Disposition: form-data; name=\"file\"; filename=\"TODO_path\"";
+pub const MULTIPART_CONTENT_TYPE: &[u8] = b"Content-Type: application/octet-stream";
+
+/// Prepare a "Content-Disposition: form-data" body wrapping param `body_bytes`
+/// That is used (at least) by API IPFS ADD.
+pub fn new_multipart_body_bytes(body_bytes: &[u8]) -> Vec<u8> {
+    // TODO(interstellar) avoid copying
+    let multipart_start = [
+        MULTIPART_BOUNDARY,
+        MULTIPART_NEW_LINE,
+        MULTIPART_CONTENT_DISPOSITION,
+        MULTIPART_NEW_LINE,
+        MULTIPART_CONTENT_TYPE,
+        MULTIPART_NEW_LINE,
+        // Space b/w "headers" and "body"
+        MULTIPART_NEW_LINE,
+    ]
+    .concat();
+    // No need for a new line at the end
+    [
+        multipart_start.as_slice(),
+        body_bytes,
+        MULTIPART_NEW_LINE,
+        MULTIPART_BOUNDARY,
+        b"--",
+    ]
+    .concat()
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn new_multipart_body_bytes_ok() {
+        let body_bytes = vec![42, 41];
+        assert_eq!(
+            new_multipart_body_bytes(&body_bytes),
+            vec![
+                45, 45, 98, 111, 117, 110, 100, 97, 114, 121, 13, 10, 67, 111, 110, 116, 101, 110,
+                116, 45, 68, 105, 115, 112, 111, 115, 105, 116, 105, 111, 110, 58, 32, 102, 111,
+                114, 109, 45, 100, 97, 116, 97, 59, 32, 110, 97, 109, 101, 61, 34, 102, 105, 108,
+                101, 34, 59, 32, 102, 105, 108, 101, 110, 97, 109, 101, 61, 34, 84, 79, 68, 79, 95,
+                112, 97, 116, 104, 34, 13, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112,
+                101, 58, 32, 97, 112, 112, 108, 105, 99, 97, 116, 105, 111, 110, 47, 111, 99, 116,
+                101, 116, 45, 115, 116, 114, 101, 97, 109, 13, 10, 13, 10, //
+                // BEGIN "body_bytes"
+                42, 41, //
+                // END "body_bytes"
+                13, 10, 45, 45, 98, 111, 117, 110, 100, 97, 114, 121, 45, 45,
+            ]
+        );
     }
 }

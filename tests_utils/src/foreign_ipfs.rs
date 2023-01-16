@@ -41,7 +41,7 @@ pub struct ForeignNode {
 
 impl ForeignNode {
     #[allow(dead_code)]
-    pub fn new(api_port: Option<&str>) -> ForeignNode {
+    fn new(api_port: Option<&str>) -> ForeignNode {
         use std::{io::Read, net::SocketAddr, str};
 
         // try with "ipfs" from PATH, and if not found try using env var GO_IPFS_PATH
@@ -167,7 +167,7 @@ impl ForeignNode {
     }
 
     #[allow(dead_code)]
-    pub async fn identity(&self) -> Result<(PublicKey, Vec<Multiaddr>), anyhow::Error> {
+    async fn identity(&self) -> Result<(PublicKey, Vec<Multiaddr>), anyhow::Error> {
         Ok((self.pk.clone(), self.addrs.clone()))
     }
 }
@@ -202,7 +202,7 @@ pub async fn api_call<T: AsRef<str>>(api_port: u16, call: T) -> String {
 // #[cfg_attr(feature = "test_go_interop", serde(rename_all = "PascalCase"))]
 // #[cfg_attr(feature = "test_js_interop", serde(rename_all = "camelCase"))]
 #[serde(rename_all = "PascalCase")]
-pub struct ForeignNodeId {
+struct ForeignNodeId {
     // #[cfg_attr(feature = "test_go_interop", serde(rename = "ID"))]
     #[serde(rename = "ID")]
     pub id: String,
@@ -215,7 +215,7 @@ pub struct ForeignNodeId {
 /// - the corresponding ipfs-api client: allows to query IPFS using the official API
 ///
 /// https://github.com/ipfs-rust/ipfs-embed/#getting-started
-pub fn run_ipfs_in_background() -> (ForeignNode, IpfsClient) {
+pub fn run_ipfs_in_background(api_port: Option<&str>) -> (ForeignNode, IpfsClient) {
     // let cache_size = 10;
     // let ipfs = Ipfs::<DefaultParams>::new(Config::default()).await.unwrap();
     // ipfs.listen_on("/ip4/127.0.0.1/tcp/0".parse().unwrap());
@@ -225,13 +225,12 @@ pub fn run_ipfs_in_background() -> (ForeignNode, IpfsClient) {
     // });
 
     // https://github.com/rs-ipfs/rust-ipfs/blob/master/tests/pubsub.rs
-    let foreign_node = ForeignNode::new(None);
+    let foreign_node = ForeignNode::new(api_port);
     let foreign_api_port = foreign_node.api_port;
     println!("run_ipfs_in_background: port: {}", foreign_api_port);
 
     let ipfs_server_multiaddr = format!("/ip4/127.0.0.1/tcp/{}", foreign_node.api_port);
-    let ipfs_client =
-        IpfsClient::from_multiaddr_str(&ipfs_server_multiaddr).unwrap();
+    let ipfs_client = IpfsClient::from_multiaddr_str(&ipfs_server_multiaddr).unwrap();
 
     // MUST be returned and kept alive; else the daemon is killed
     (foreign_node, ipfs_client)

@@ -5,7 +5,8 @@ members = [
     "pallets/ocw-circuits",
     "pallets/ocw-garble",
     "pallets/tx-registry",
-    "pallets/tx-validation"
+    "pallets/tx-validation",
+    "tests_utils"
 ]
 
 ################################################################################

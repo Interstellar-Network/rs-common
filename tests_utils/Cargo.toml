@@ -1,0 +1,20 @@
+[package]
+name = "tests-utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", default-features = false, features = ['derive'] }
+serde_json = { version = "1", default-features = false, features = ['alloc'] }
+rand = { version = "*", default-features = false }
+
+# cf https://github.com/rs-ipfs/rust-ipfs/blob/master/Cargo.toml
+# Needed for tests/foreign_ipfs.rs
+libp2p = { default-features = false, features = ["floodsub", "identify", "kad", "tcp-tokio", "mplex", "noise", "ping", "yamux", "dns-tokio"], version = "*" }
+base64 = { default-features = false, features = ["alloc"], version = "*" }
+anyhow = "1.0"
+# A recent version is required for the Send trait else
+# "the trait `Send` is not implemented for `dyn Future<Output = Result<AddResponse, ipfs_api_backend_hyper::Error>>`"
+# https://github.com/ferristseng/rust-ipfs-api/issues/90
+# ipfs-api-backend-hyper = "0.3"
+ipfs-api-backend-hyper = { version = ">0.5", features = [ "with-send-sync" , "with-builder" ] }

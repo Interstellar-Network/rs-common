@@ -18,3 +18,5 @@ anyhow = "1.0"
 # https://github.com/ferristseng/rust-ipfs-api/issues/90
 # ipfs-api-backend-hyper = "0.3"
 ipfs-api-backend-hyper = { version = ">0.5", features = [ "with-send-sync" , "with-builder" ] }
+# ipfs-api-backend-actix = { version = ">=0.7", features = [ "with-builder" ] }
+# ipfs-api-prelude = { version = "*", features = [ "with-send-sync"] }

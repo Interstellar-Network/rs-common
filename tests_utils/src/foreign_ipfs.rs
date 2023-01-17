@@ -25,8 +25,7 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
-pub use ipfs_api_backend_hyper::IpfsApi;
-pub use ipfs_api_backend_hyper::IpfsClient;
+pub use ipfs_api_backend_hyper::{IpfsApi, IpfsClient};
 
 #[derive(Debug)]
 pub struct ForeignNode {

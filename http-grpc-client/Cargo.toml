@@ -7,14 +7,14 @@ edition = "2021"
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-base64 = { default-features = false, features = ["alloc"], version = "0.13" }
+base64 = { default-features = false, features = ["alloc"], version = "0.21" }
 bytes = { version = "1.1.0", default-features = false }
 # https://github.com/tokio-rs/prost#using-prost-in-a-no_std-crate
 prost = { version = "0.11", default-features = false, features = ["prost-derive"] }
 serde = { version = '1.0', default-features = false }
 serde_json = { version = '1.0', default-features = false, features = ['alloc'] }
 hex = { version = "0.4", default-features = false, features = ['alloc'] }
-codec = { package = "parity-scale-codec", version = "^3.1", default-features = false, features = [
+codec = { package = "parity-scale-codec", version = "3", default-features = false, features = [
 	"derive",
 ] }
 snafu = { version = "0.7", default-features = false }
@@ -23,26 +23,16 @@ snafu = { version = "0.7", default-features = false }
 # cf app-libs/exchange-oracle/Cargo.toml
 # TODO? git = "https://github.com/integritee-network/worker"
 # cf https://github.com/integritee-network/worker/blob/6f8d6baa20748d19853ef16cd00917bfb56029fc/core/rest-client/Cargo.toml
-# default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In any case, rustls works fine
-http_req = { package = "http_req", optional = true, default-features = false, git = "https://github.com/integritee-network/http_req"}
-url = { version = "2.0.0", optional = true, default-features = false }
-url_sgx = { package = "url", git = "https://github.com/mesalock-linux/rust-url-sgx", tag = "sgx_1.1.3", optional = true }
+# http_req: default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In any case, rustls works fine
 sp-runtime = { optional = true, default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.36" }
 
 [features]
 default = ["std"]
-http_req = ["url_sgx?/mesalock_sgx", "url?/default"]
 sp_offchain = ["sp-runtime"]
 std = [
 	"log/std",
 	"hex/std",
-	"http_req?/rust-tls",
-	"url",
 	"sp-runtime?/std",
 ]
 # core/rest-client/Cargo.toml
-sgx = [
-	"http_req?/rust-tls",
-	"http_req?/sgx",
-	"url_sgx",
-]
+sgx = []

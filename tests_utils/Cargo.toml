@@ -10,9 +10,9 @@ rand = { version = "*", default-features = false }
 
 # cf https://github.com/rs-ipfs/rust-ipfs/blob/master/Cargo.toml
 # Needed for tests/foreign_ipfs.rs
-libp2p = { default-features = false, features = ["floodsub", "identify", "kad", "tcp-tokio", "mplex", "noise", "ping", "yamux", "dns-tokio"], version = "*" }
-base64 = { default-features = false, features = ["alloc"], version = "*" }
-anyhow = "1.0"
+libp2p = { default-features = false, features = ["floodsub", "identify", "kad", "mplex", "noise", "ping", "yamux"], version = "0.50" }
+base64 = { default-features = false, features = ["alloc"], version = "0.21" }
+anyhow = "1"
 # A recent version is required for the Send trait else
 # "the trait `Send` is not implemented for `dyn Future<Output = Result<AddResponse, ipfs_api_backend_hyper::Error>>`"
 # https://github.com/ferristseng/rust-ipfs-api/issues/90

@@ -7,6 +7,7 @@ use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
+use base64::{engine::general_purpose, Engine as _};
 use bytes::{Buf, BufMut};
 use core::time::Duration;
 use snafu::prelude::*;
@@ -87,7 +88,10 @@ pub fn decode_body_grpc_web<T: prost::Message + Default>(
 
     let mut body = match grpc_content_type {
         // only "application/grpc-web-text+proto" needs to be base64 decoded, the rest is handled as-is
-        ContentType::GrpcWebTextProto => base64::decode(body_bytes).unwrap().into(),
+        ContentType::GrpcWebTextProto => general_purpose::STANDARD_NO_PAD
+            .decode(body_bytes)
+            .unwrap()
+            .into(),
         _ => body_bytes,
     };
 
@@ -159,9 +163,9 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
         "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
         url,
         if let Some(ref body_bytes) = body_bytes {
-            base64::encode(body_bytes)
+            general_purpose::STANDARD_NO_PAD.encode(body_bytes)
         } else {
-            base64::encode(&[])
+            "".to_string()
         }
     );
 
@@ -216,7 +220,7 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
             request =
                 request.add_header("Content-Type", "multipart/form-data;boundary=\"boundary\"");
         }
-        None | _ => {}
+        _ => {}
     }
 
     // NOTE: we CAN have a POST request without a body; eg IPFS CAT
@@ -229,7 +233,11 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
     // to alter request headers or stream body content in case of non-GET requests.
     // NOTE: 'http_request_start can be called only in the offchain worker context'
     let pending = request
-        // .deadline(timeout_duration)
+        .deadline(
+            sp_io::offchain::timestamp().add(sp_runtime::offchain::Duration::from_millis(
+                timeout_duration.as_millis().try_into().unwrap(),
+            )),
+        )
         .send()
         .map_err(|_| InterstellarHttpClientError::IoError)?;
 

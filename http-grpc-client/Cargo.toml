@@ -25,14 +25,16 @@ snafu = { version = "0.7", default-features = false }
 # cf https://github.com/integritee-network/worker/blob/6f8d6baa20748d19853ef16cd00917bfb56029fc/core/rest-client/Cargo.toml
 # http_req: default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In any case, rustls works fine
 sp-runtime = { optional = true, default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.36" }
+sp-io = { optional = true, default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.36" }
 
 [features]
 default = ["std"]
-sp_offchain = ["sp-runtime"]
+sp_offchain = ["sp-runtime", "sp-io"]
 std = [
 	"log/std",
 	"hex/std",
 	"sp-runtime?/std",
+	"sp-io?/std"
 ]
 # core/rest-client/Cargo.toml
 sgx = []

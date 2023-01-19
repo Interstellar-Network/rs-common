@@ -12,6 +12,13 @@ use bytes::{Buf, BufMut};
 use core::time::Duration;
 use snafu::prelude::*;
 
+// the code COULD be made to compile, but it would FAIL at runtime; cf README.md
+#[cfg(all(feature = "sgx", feature = "sp_offchain"))]
+compile_error!("feature \"sgx\" and feature \"sp_offchain\" cannot be enabled at the same time");
+
+#[cfg(all(feature = "sgx", feature = "with_http_req_sgx"))]
+use http_req_sgx as http_req;
+
 // we CAN NOT just send the raw encoded protobuf(eg using GarbleIpfsRequest{}.encode())
 // b/c that returns errors like
 // "protocol error: received message with invalid compression flag: 8 (valid flags are 0 and 1), while sending request"
@@ -137,10 +144,16 @@ pub fn decode_rpc_json<T: codec::Decode>(
 
 #[derive(Debug, Snafu)]
 pub enum InterstellarHttpClientError {
-    HttpError { status_code: u16 },
+    #[snafu(display("http error[{}]: {:?}", status_code, response))]
+    HttpError {
+        status_code: u16,
+        response: Vec<u8>,
+    },
     IoError,
     Timeout,
-    UnknownResponseContentType { content_type: String },
+    UnknownResponseContentType {
+        content_type: String,
+    },
 }
 
 /// This function uses the `offchain::http` API to query the remote endpoint information,
@@ -149,9 +162,7 @@ pub enum InterstellarHttpClientError {
 /// return:
 /// - the body, as raw bytes
 /// - the Content-Type Header: needed to know how to deserialize(cf decode_body)
-///
-/// IMPORTANT: if in the future you need to use http_req(or http_req_sgx): CHECK GIT HISTORY
-#[cfg(feature = "sp_offchain")]
+#[cfg(feature = "with_sp_offchain")]
 pub fn sp_offchain_fetch_from_remote_grpc_web(
     body_bytes: Option<bytes::Bytes>,
     url: &str,
@@ -239,7 +250,13 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
             )),
         )
         .send()
-        .map_err(|_| InterstellarHttpClientError::IoError)?;
+        .map_err(|err| {
+            log::warn!(
+                "fetch_from_remote_grpc_web: InterstellarHttpClientError::IoError at send = {:?}",
+                err
+            );
+            InterstellarHttpClientError::IoError
+        })?;
 
     // The request is already being processed by the host, we are free to do anything
     // else in the worker (we can send multiple concurrent requests too).
@@ -250,32 +267,27 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
     let mut response = pending
         // .try_wait(timeout_duration)
         .try_wait(None)
-        .map_err(|_| InterstellarHttpClientError::Timeout)?
-        .map_err(|_| InterstellarHttpClientError::Timeout)?;
+        .map_err(|err| {
+            log::warn!(
+                "fetch_from_remote_grpc_web: InterstellarHttpClientError::IoError at try_wait[1] = {:?}",
+                err
+            );
+            InterstellarHttpClientError::Timeout
+        })?
+        .map_err(|err| {
+            log::warn!(
+                "fetch_from_remote_grpc_web: InterstellarHttpClientError::IoError at try_wait[2] = {:?}",
+                err
+            );
+            InterstellarHttpClientError::Timeout
+        })?;
 
     let response_code = response.code;
     let response_content_type_str = response.headers().find("content-type").unwrap();
-    log::info!(
-        "[fetch_from_remote_grpc_web] status code: {}, content_type: {}",
-        response_code,
-        response_content_type_str
-    );
-    let response_content_type_type = match response_content_type_str {
-        // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
-        "application/grpc-web" => ContentType::GrpcWeb,
-        "application/grpc-web+proto" => ContentType::GrpcWeb,
-        // BUT "application/grpc-web-text+proto" is base64 encoded
-        "application/grpc-web-text+proto" => ContentType::GrpcWebTextProto,
-        // classic JSON
-        "application/json" => ContentType::Json,
-        "application/json; charset=utf-8" => ContentType::Json,
-        "text/plain" => ContentType::TextPlain,
-        _ => {
-            return Err(InterstellarHttpClientError::UnknownResponseContentType {
-                content_type: response_content_type_str.to_owned(),
-            })
-        }
-    };
+    let response_content_type_type =
+        parse_response_content_type(response_content_type_str).unwrap();
+    let response_bytes = response.body().collect::<bytes::Bytes>();
+
     // DEBUG: list headers
     // let mut headers_it = response.headers().into_iter();
     // while headers_it.next() {
@@ -288,18 +300,146 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
     // }
 
     // Let's check the status code before we proceed to reading the response.
-    if response.code != 200 {
+    if response_code != 200 {
         log::warn!(
             "[fetch_from_remote_grpc_web] Unexpected status code: {}",
-            response.code
+            response_code
         );
         return Err(InterstellarHttpClientError::HttpError {
-            status_code: response.code,
+            status_code: response_code,
+            response: response_bytes.to_vec(),
         });
     }
 
-    let response_bytes = response.body().collect::<bytes::Bytes>();
     Ok((response_bytes, response_content_type_type))
+}
+
+/// This function uses the `offchain::http` API to query the remote endpoint information,
+///   and returns the JSON response as vector of bytes.
+///
+/// return:
+/// - the body, as raw bytes
+/// - the Content-Type Header: needed to know how to deserialize(cf decode_body)
+#[cfg(feature = "with_http_req")]
+pub fn http_req_fetch_from_remote_grpc_web(
+    body_bytes: Option<bytes::Bytes>,
+    url: &str,
+    request_method: RequestMethod,
+    request_content_type: Option<ContentType>,
+    timeout_duration: Duration,
+) -> Result<(bytes::Bytes, ContentType), InterstellarHttpClientError> {
+    log::info!(
+        "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
+        url,
+        if let Some(ref body_bytes) = body_bytes {
+            general_purpose::STANDARD_NO_PAD.encode(body_bytes)
+        } else {
+            "".to_string()
+        }
+    );
+
+    let uri = http_req::uri::Uri::try_from(url).unwrap();
+
+    let mut request = http_req::request::Request::new(&uri);
+
+    match request_method {
+        RequestMethod::Post => {
+            request.method(http_req::request::Method::POST);
+        }
+        RequestMethod::Get => {
+            request.method(http_req::request::Method::GET);
+        }
+        RequestMethod::Put => {
+            request.method(http_req::request::Method::PUT);
+        }
+        RequestMethod::Patch => {
+            request.method(http_req::request::Method::PATCH);
+        }
+        RequestMethod::Delete => {
+            request.method(http_req::request::Method::DELETE);
+        }
+    }
+
+    match request_content_type {
+        Some(ContentType::GrpcWeb) => {
+            request.header("Content-Type", "application/grpc-web");
+            request.header("X-Grpc-Web", "1");
+        }
+        Some(ContentType::Json) => {
+            request.header("Content-Type", "application/json;charset=utf-8");
+        }
+        Some(ContentType::MultipartFormData) => {
+            request.header("Content-Type", "multipart/form-data;boundary=\"boundary\"");
+        }
+        _ => {}
+    }
+
+    // NOTE: we CAN have a POST request without a body; eg IPFS CAT
+    // NOTE: "send" and "body" MUST have a ref to the body, so we must copy it
+    let body_bytes_copy: Vec<u8> = if let Some(body_bytes) = body_bytes {
+        let body_bytes = body_bytes.to_vec();
+        request.header("Content-Length", &body_bytes.len().to_string());
+        body_bytes
+    } else {
+        vec![]
+    };
+    request.body(&body_bytes_copy);
+
+    request.timeout(Some(timeout_duration));
+
+    let mut response_bytes = Vec::new();
+    let response = request.send(&mut response_bytes).map_err(|err| {
+        log::warn!(
+            "fetch_from_remote_grpc_web: InterstellarHttpClientError::IoError at send = {:?}",
+            err
+        );
+        InterstellarHttpClientError::IoError
+    })?;
+
+    let content_type_header = response.headers().get("content-type").unwrap();
+    let response_content_type_type =
+        parse_response_content_type(content_type_header.as_str()).unwrap();
+
+    // Let's check the status code before we proceed to reading the response.
+    if !response.status_code().is_success() {
+        log::warn!(
+            "[fetch_from_remote_grpc_web] Unexpected status code: {}",
+            response.status_code()
+        );
+        return Err(InterstellarHttpClientError::HttpError {
+            status_code: u16::from(response.status_code()),
+            response: response_bytes.clone(),
+        });
+    }
+
+    Ok((
+        bytes::Bytes::from(response_bytes),
+        response_content_type_type,
+    ))
+}
+
+fn parse_response_content_type(
+    response_content_type_str: &str,
+) -> Result<ContentType, InterstellarHttpClientError> {
+    log::info!(
+        "[fetch_from_remote_grpc_web] content_type: {}",
+        response_content_type_str,
+    );
+    match response_content_type_str {
+        // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
+        "application/grpc-web" => Ok(ContentType::GrpcWeb),
+        "application/grpc-web+proto" => Ok(ContentType::GrpcWeb),
+        // BUT "application/grpc-web-text+proto" is base64 encoded
+        "application/grpc-web-text+proto" => Ok(ContentType::GrpcWebTextProto),
+        // classic JSON
+        "application/json" => Ok(ContentType::Json),
+        "application/json; charset=utf-8" => Ok(ContentType::Json),
+        "application/json;charset=utf-8" => Ok(ContentType::Json),
+        "text/plain" => Ok(ContentType::TextPlain),
+        _ => Err(InterstellarHttpClientError::UnknownResponseContentType {
+            content_type: response_content_type_str.to_owned(),
+        }),
+    }
 }
 
 // https://github.com/mikedilger/formdata/blob/master/src/lib.rs

@@ -8,6 +8,7 @@ members = [
     "pallets/tx-validation",
     "tests_utils"
 ]
+resolver = "2"
 
 ################################################################################
 # [patch."https://github.com/Interstellar-Network/lib-garble-rs.git"]

@@ -21,12 +21,6 @@ use bytes::{Buf, BufMut};
 use core::time::Duration;
 use snafu::prelude::*;
 
-// the code COULD be made to compile, but it would FAIL at runtime; cf README.md
-#[cfg(all(feature = "sgx", feature = "with_sp_offchain"))]
-compile_error!(
-    "feature \"sgx\" and feature \"with_sp_offchain\" cannot be enabled at the same time"
-);
-
 #[cfg(all(feature = "sgx", feature = "with_http_req_sgx"))]
 use http_req_sgx as http_req;
 
@@ -195,6 +189,9 @@ pub enum InterstellarHttpClientError {
 
 /// This function uses the `offchain::http` API to query the remote endpoint information,
 ///   and returns the JSON response as vector of bytes.
+///
+/// WARNING: DO NOT USE in sgx env!
+/// The code compiles, but it would FAIL at runtime; cf README.md
 ///
 /// return:
 /// - the body, as raw bytes

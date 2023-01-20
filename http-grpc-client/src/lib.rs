@@ -13,8 +13,10 @@ use core::time::Duration;
 use snafu::prelude::*;
 
 // the code COULD be made to compile, but it would FAIL at runtime; cf README.md
-#[cfg(all(feature = "sgx", feature = "sp_offchain"))]
-compile_error!("feature \"sgx\" and feature \"sp_offchain\" cannot be enabled at the same time");
+#[cfg(all(feature = "sgx", feature = "with_sp_offchain"))]
+compile_error!(
+    "feature \"sgx\" and feature \"with_sp_offchain\" cannot be enabled at the same time"
+);
 
 #[cfg(all(feature = "sgx", feature = "with_http_req_sgx"))]
 use http_req_sgx as http_req;

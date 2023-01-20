@@ -1,11 +1,6 @@
 [workspace]
 members = [
-    "ocw-common",
-    "pallets/mobile-registry",
-    "pallets/ocw-circuits",
-    "pallets/ocw-garble",
-    "pallets/tx-registry",
-    "pallets/tx-validation",
+    "http-grpc-client",
     "tests_utils"
 ]
 resolver = "2"

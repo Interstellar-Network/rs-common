@@ -1,0 +1,65 @@
+name: Build and Test
+
+on:
+  push:
+
+jobs:
+  # TODO split test and lint; but that REQUIRE caching else recompile from scratch in between
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      # install build dependencies
+      # MUST match the same step in Dockerfile
+      # - name: Install dependencies
+      #   run: sudo apt-get update && sudo apt-get install -y libboost-dev
+
+      - uses: Interstellar-Network/gh-actions/prepare@v2
+        with:
+          ssh_key_input: ${{ secrets.SSH_KEY_MACHINE_USER_INTERSTELLAR_CI }}
+          install_cmake_and_ninja: false
+
+      - uses: Interstellar-Network/gh-actions/prepare_rust@v2
+        with:
+          toolchain_toolchain: stable
+
+      ##########################################################################
+      # NOTE "protoc-VERSION-HOST.zip"(contains protoc itself)
+      # and "protobuf-cpp-VERSION.tar.gz" contains the source code for eg "src/google/protobuf/port_def.inc"
+      # What we download in CI, and what shared/rust/circuit_evaluate/build.rs expects SHOULD MATCH!
+      # DO NOT change the structure, else build.rs will fail!
+      #
+      # Needed for at least libp2p
+      - name: Install protoc custom prebuilt binary
+        run: |
+          mkdir /home/runner/protoc
+          cd /home/runner/protoc
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip -O prebuilt.zip
+          unzip prebuilt.zip
+          rm prebuilt.zip
+          echo "PROTOC=/home/runner/protoc/bin/protoc" >> $GITHUB_ENV
+        shell: bash
+
+      ##########################################################################
+
+      - uses: Interstellar-Network/gh-actions/rust-build-and-test@v2
+        with:
+          check_args: --features=with_sp_offchain,with_http_req_std
+          test_args: --features=with_sp_offchain,with_http_req_std
+
+      ##########################################################################
+
+      - uses: Interstellar-Network/gh-actions/rust-lint@v2
+        with:
+          clippy_args: --features=with_sp_offchain,with_http_req_std -- -D warnings
+
+      ##########################################################################
+
+      # TODO move into separate action? ideally into a JS action "post" that setup ccache?
+      # NOTE: remove if using "rust-build-and-test"
+      - name: Print ccache/sccache stats
+        # display stats even if tests failed
+        if: always()
+        run: |
+          ccache --show-stats || true
+          sccache --show-stats || true
+        shell: bash

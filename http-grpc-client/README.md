@@ -1,7 +1,7 @@
-#
+# http-grpc-client
 
 TODO the http client is used both:
-- from the pallets/ in this repo
+- from the pallets/ repo
 - as a dependency of `lib-garble-rs`
 
 Be **REALLY** to make sure this client is compatible with no_std/sgx.

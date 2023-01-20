@@ -1,0 +1,3 @@
+[submodule "tests_sgx"]
+	path = tests_sgx
+	url = https://github.com/Interstellar-Network/teaclave-sample-unit-test.git

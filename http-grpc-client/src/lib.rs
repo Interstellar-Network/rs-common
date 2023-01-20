@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 #![deny(elided_lifetimes_in_paths)]
 #![warn(clippy::suspicious)]
 #![warn(clippy::complexity)]

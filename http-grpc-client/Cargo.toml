@@ -26,18 +26,18 @@ sp-io = { optional = true, default-features = false, git = "https://github.com/p
 # cf app-libs/exchange-oracle/Cargo.toml
 # cf https://github.com/integritee-network/worker/blob/4083b03427890a9aeac0ddc053423b57bf590029/core/rest-client/Cargo.toml
 # http_req: default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In any case, rustls works fine
-http_req = { optional = true, features = ["rust-tls"], branch = "master", git = "https://github.com/integritee-network/http_req" }
+http_req = { optional = true, default-features = false, features = ["rust-tls"], branch = "master", git = "https://github.com/integritee-network/http_req" }
 http_req-sgx = { optional = true, default-features = false, features = ["rust-tls", "sgx"], package = "http_req", git = "https://github.com/integritee-network/http_req" }
 
 [features]
 default = ["std"]
-with_sp_offchain = ["sp-runtime", "sp-io"]
 # client: SHOULD use "with_http_req_std"/"with_http_req_sgx", or not
 # "with_http_req" is INTERNAL; idea from https://blog.turbo.fish/cargo-features/
 # "Activating a dependency if a combination of features is active"
 with_http_req = []
 with_http_req_std = ["with_http_req", "http_req"]
 with_http_req_sgx = ["with_http_req", "http_req-sgx"]
+with_sp_offchain = ["sp-runtime", "sp-io"]
 std = [
 	"log/std",
 	"hex/std",
@@ -47,5 +47,5 @@ std = [
 ]
 # core/rest-client/Cargo.toml
 sgx = [
-	"http_req-sgx?/sgx"
+	"http_req-sgx?/sgx",
 ]

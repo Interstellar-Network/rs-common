@@ -18,7 +18,6 @@ use alloc::vec;
 use alloc::vec::Vec;
 use base64::{engine::general_purpose, Engine as _};
 use bytes::{Buf, BufMut};
-use core::time::Duration;
 use snafu::prelude::*;
 
 #[cfg(all(feature = "sgx", feature = "with_http_req_sgx"))]
@@ -211,7 +210,7 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
     url: &str,
     request_method: &RequestMethod,
     request_content_type: Option<&ContentType>,
-    timeout_duration: Duration,
+    timeout_duration: core::time::Duration,
 ) -> Result<(bytes::Bytes, ContentType), InterstellarHttpClientError> {
     log::info!(
         "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
@@ -383,7 +382,7 @@ pub fn http_req_fetch_from_remote_grpc_web(
     url: &str,
     request_method: &RequestMethod,
     request_content_type: Option<&ContentType>,
-    timeout_duration: Duration,
+    timeout_duration: core::time::Duration,
 ) -> Result<(bytes::Bytes, ContentType), InterstellarHttpClientError> {
     log::info!(
         "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
@@ -479,6 +478,7 @@ pub fn http_req_fetch_from_remote_grpc_web(
     ))
 }
 
+#[cfg(any(feature = "with_http_req", feature = "with_sp_offchain"))]
 fn parse_response_content_type(response_content_type_str: &str) -> ContentType {
     log::info!(
         "[fetch_from_remote_grpc_web] content_type: {}",
@@ -545,6 +545,7 @@ pub fn new_multipart_body_bytes(body_bytes: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec;
 
     #[test]
     fn new_multipart_body_bytes_ok() {

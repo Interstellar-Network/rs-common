@@ -57,7 +57,7 @@ impl ForeignNode {
                     env::vars()
                         .find(|(key, _val)| key == ENV_IPFS_PATH)
                         .unwrap_or_else(|| {
-                            panic!("the {} environment variable was not found", ENV_IPFS_PATH)
+                            panic!("the environment variable [ENV_IPFS_PATH] was not found")
                         })
                         .1
                 }
@@ -90,7 +90,7 @@ impl ForeignNode {
                 .args([
                     "config",
                     "Addresses.API",
-                    format!("/ip4/0.0.0.0/tcp/{}", api_port).as_str(),
+                    format!("/ip4/0.0.0.0/tcp/{api_port}").as_str(),
                 ])
                 .stdout(Stdio::null())
                 .status()
@@ -230,7 +230,7 @@ pub fn run_ipfs_in_background(api_port: Option<&str>) -> (ForeignNode, IpfsClien
     // https://github.com/rs-ipfs/rust-ipfs/blob/master/tests/pubsub.rs
     let foreign_node = ForeignNode::new(api_port);
     let foreign_api_port = foreign_node.api_port;
-    println!("run_ipfs_in_background: port: {}", foreign_api_port);
+    println!("run_ipfs_in_background: port: {foreign_api_port}");
 
     let ipfs_server_multiaddr = format!("/ip4/127.0.0.1/tcp/{}", foreign_node.api_port);
     let ipfs_client = IpfsClient::from_multiaddr_str(&ipfs_server_multiaddr).unwrap();

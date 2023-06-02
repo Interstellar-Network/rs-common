@@ -10,7 +10,8 @@ rand = { version = "*", default-features = false }
 
 # cf https://github.com/rs-ipfs/rust-ipfs/blob/master/Cargo.toml
 # Needed for tests/foreign_ipfs.rs
-libp2p = { default-features = false, features = ["floodsub", "identify", "kad", "mplex", "noise", "ping", "yamux"], version = "0.50" }
+libp2p = { default-features = false, features = ["floodsub", "identify", "kad", "mplex", "noise", "ping", "yamux"], version = "0.51" }
+libp2p-identity = "0.1.2"
 base64 = { default-features = false, features = ["alloc"], version = "0.21" }
 anyhow = "1"
 # A recent version is required for the Send trait else
@@ -18,5 +19,6 @@ anyhow = "1"
 # https://github.com/ferristseng/rust-ipfs-api/issues/90
 # ipfs-api-backend-hyper = "0.3"
 ipfs-api-backend-hyper = { version = ">0.5", features = [ "with-send-sync" , "with-builder" ] }
+
 # ipfs-api-backend-actix = { version = ">=0.7", features = [ "with-builder" ] }
 # ipfs-api-prelude = { version = "*", features = [ "with-send-sync"] }

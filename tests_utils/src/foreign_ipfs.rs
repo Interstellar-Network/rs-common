@@ -17,7 +17,8 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use ipfs_api_backend_hyper::TryFromUri;
-use libp2p::{core::PublicKey, Multiaddr, PeerId};
+use libp2p::{Multiaddr, PeerId};
+use libp2p_identity::PublicKey;
 use rand::prelude::*;
 use serde::Deserialize;
 use std::{
@@ -151,7 +152,7 @@ impl ForeignNode {
         } = serde_json::de::from_str(&node_id_stdout).unwrap();
 
         let id = id.parse().unwrap();
-        let pk = PublicKey::from_protobuf_encoding(
+        let pk = PublicKey::try_decode_protobuf(
             &general_purpose::STANDARD_NO_PAD
                 .decode(public_key.into_bytes())
                 .unwrap(),

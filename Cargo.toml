@@ -1,8 +1,5 @@
 [workspace]
-members = [
-    "http-grpc-client",
-    "tests_utils"
-]
+members = ["http-grpc-client", "ipfs-client-http-req", "tests_utils"]
 resolver = "2"
 
 ################################################################################

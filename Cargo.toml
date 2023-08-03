@@ -1,7 +1,9 @@
 [workspace]
 members = [
     "http-grpc-client",
-    "tests_utils"
+    "ipfs-client-http-req",
+    "png_utils",
+    "tests_utils",
 ]
 resolver = "2"
 

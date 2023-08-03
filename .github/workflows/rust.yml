@@ -24,7 +24,13 @@ jobs:
         with:
           toolchain_components: "rustfmt,clippy"
 
+      ##########################################################################
+
       - uses: Interstellar-Network/gh-actions/install-protoc@v3-dev
+
+      ##########################################################################
+
+      - uses: Interstellar-Network/gh-actions/install-go-ipfs@v3-dev
 
       ##########################################################################
 

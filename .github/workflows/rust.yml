@@ -6,8 +6,7 @@ on:
 jobs:
   ##########################################################################
   ##########################################################################
-  # TODO split test and lint; but that REQUIRE caching else recompile from scratch in between
-  rust:
+  rust_lint:
     runs-on: ubuntu-latest
     steps:
       ##########################################################################
@@ -26,7 +25,42 @@ jobs:
 
       ##########################################################################
 
-      - uses: Interstellar-Network/gh-actions/install-protoc@v3-dev
+      - uses: Interstellar-Network/gh-actions/install-go-ipfs@v3-dev
+
+      ##########################################################################
+
+      - uses: Interstellar-Network/gh-actions/rust-lint@v3-dev
+        with:
+          clippy_args: --features=with_sp_offchain,with_http_req_std -- -D warnings
+
+      ##########################################################################
+
+      # TODO move into separate action? ideally into a JS action "post" that setup ccache?
+      # NOTE: remove if using "rust-build-and-test"
+      - name: Print ccache/sccache stats
+        # display stats even if tests failed
+        if: always()
+        run: |
+          ccache --show-stats || true
+          sccache --show-stats || true
+        shell: bash
+
+  rust_test:
+    runs-on: ubuntu-latest
+    steps:
+      ##########################################################################
+      # This is pretty dumb: we MUST call action/checkout BEFORE using a local action...
+      # else: Error: Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under '/home/runner/work/rs-common/rs-common/.github/actions/setup'. Did you forget to run actions/checkout before running your local action?
+      - uses: Interstellar-Network/gh-actions/prepare@v3-dev
+        with:
+          ssh_key_input: ${{ secrets.SSH_KEY_MACHINE_USER_INTERSTELLAR_CI }}
+          install_cmake_and_ninja: false
+
+      ##########################################################################
+
+      - uses: Interstellar-Network/gh-actions/prepare_rust@v3-dev
+        with:
+          toolchain_components: "rustfmt,clippy"
 
       ##########################################################################
 
@@ -41,9 +75,43 @@ jobs:
 
       ##########################################################################
 
+      # TODO move into separate action? ideally into a JS action "post" that setup ccache?
+      # NOTE: remove if using "rust-build-and-test"
+      - name: Print ccache/sccache stats
+        # display stats even if tests failed
+        if: always()
+        run: |
+          ccache --show-stats || true
+          sccache --show-stats || true
+        shell: bash
+
+  rust_wasm:
+    runs-on: ubuntu-latest
+    steps:
+      ##########################################################################
+      # This is pretty dumb: we MUST call action/checkout BEFORE using a local action...
+      # else: Error: Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under '/home/runner/work/rs-common/rs-common/.github/actions/setup'. Did you forget to run actions/checkout before running your local action?
+      - uses: Interstellar-Network/gh-actions/prepare@v3-dev
+        with:
+          ssh_key_input: ${{ secrets.SSH_KEY_MACHINE_USER_INTERSTELLAR_CI }}
+          install_cmake_and_ninja: false
+
+      ##########################################################################
+
+      - uses: Interstellar-Network/gh-actions/prepare_rust@v3-dev
+        with:
+          toolchain_components: "rustfmt,clippy"
+
+      ##########################################################################
+
+      - uses: Interstellar-Network/gh-actions/install-go-ipfs@v3-dev
+
+      ##########################################################################
+
+      # tests will not compile/run so build/check only; at least for now...
       - uses: Interstellar-Network/gh-actions/rust-lint@v3-dev
         with:
-          clippy_args: --features=with_sp_offchain,with_http_req_std -- -D warnings
+          check_args: -p ipfs-client-http-req --lib --no-default-features --target=wasm32-unknown-unknown --features=js
 
       ##########################################################################
 

@@ -7,6 +7,7 @@ extern crate alloc;
 #[cfg(all(not(feature = "std"), feature = "sgx"))]
 extern crate sgx_tstd as std;
 
+use alloc::format;
 use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
@@ -15,7 +16,6 @@ use serde::Deserialize;
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use snafu::prelude::*;
-use std::format;
 
 /// cf https://github.com/ferristseng/rust-ipfs-api/blob/master/ipfs-api-prelude/src/from_uri.rs#L17
 const VERSION_PATH_V0: &str = "/api/v0";
@@ -31,12 +31,10 @@ pub enum IpfsError {
     #[snafu(display("serde error: {}", err))]
     DeserializationError { err: serde_json::Error },
     #[snafu(display("utf8 error: {}", err))]
-    Utf8Error { err: std::string::FromUtf8Error },
-    #[snafu(display("stream io error: {}", err))]
-    IoStreamError { err: std::io::Error },
+    Utf8Error { err: alloc::string::FromUtf8Error },
 }
 
-type Result<T, E = IpfsError> = std::result::Result<T, E>;
+type Result<T, E = IpfsError> = core::result::Result<T, E>;
 
 /// eg: "{"Name":"TODO_path","Hash":"QmUjBgZpddDdKZkAFszLyrX2YkBLPKLmkKWJFsU1fTcJWo","Size":"36"}"
 /// cf https://github.com/ferristseng/rust-ipfs-api/blob/master/ipfs-api-prelude/src/response/add.rs

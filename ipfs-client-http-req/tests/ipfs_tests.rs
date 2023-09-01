@@ -1,20 +1,27 @@
 use futures::TryStreamExt;
-use ipfs_client_http_req::IpfsClient;
+#[cfg(feature = "with_http_req")]
+use interstellar_ipfs_client::{IpfsClient, IpfsClientHttpReq};
 use std::io::Cursor;
 use test_log::test;
 use tests_utils::foreign_ipfs;
 use tests_utils::foreign_ipfs::IpfsApi;
 use tests_utils::foreign_ipfs::IpfsClient as IpfsReferenceClient;
 
-fn setup_ipfs() -> (IpfsClient, IpfsReferenceClient, foreign_ipfs::ForeignNode) {
+#[cfg(feature = "with_http_req")]
+fn setup_ipfs() -> (
+    IpfsClientHttpReq,
+    IpfsReferenceClient,
+    foreign_ipfs::ForeignNode,
+) {
     let (foreign_node, ipfs_reference_client) = foreign_ipfs::run_ipfs_in_background(None);
     // let ipfs_server_multiaddr = format!("/ip4/127.0.0.1/tcp/{}", foreign_node.api_port);
     let ipfs_server_multiaddr = format!("http://127.0.0.1:{}", foreign_node.api_port);
-    let ipfs_internal_client = IpfsClient::new(&ipfs_server_multiaddr).unwrap();
+    let ipfs_internal_client = IpfsClientHttpReq::new(&ipfs_server_multiaddr).unwrap();
 
     (ipfs_internal_client, ipfs_reference_client, foreign_node)
 }
 
+#[cfg(feature = "with_http_req")]
 #[tokio::test]
 async fn test_ipfs_add_ok() {
     let (ipfs_internal_client, ipfs_reference_client, foreign_node) = setup_ipfs();
@@ -37,6 +44,7 @@ async fn test_ipfs_add_ok() {
     assert!(foreign_node.daemon.id() > 0);
 }
 
+#[cfg(feature = "with_http_req")]
 #[tokio::test]
 async fn test_ipfs_cat_ok() {
     let (ipfs_internal_client, ipfs_reference_client, foreign_node) = setup_ipfs();
@@ -57,14 +65,15 @@ async fn test_ipfs_cat_ok() {
     assert!(foreign_node.daemon.id() > 0);
 }
 
+#[cfg(feature = "with_http_req")]
 /// https://rust-lang.github.io/api-guidelines/interoperability.html#types-are-send-and-sync-where-possible-c-send-sync
 #[test]
 fn require_send_sync() {
     fn assert_send<T: Send>() {}
-    assert_send::<IpfsClient>();
+    assert_send::<IpfsClientHttpReq>();
 
     fn assert_sync<T: Sync>() {}
-    assert_sync::<IpfsClient>();
+    assert_sync::<IpfsClientHttpReq>();
 }
 
 // TODO re-add; but this fail with "called outside of an Externalities-provided environment."

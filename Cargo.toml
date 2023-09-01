@@ -1,14 +1,8 @@
 [workspace]
-members = [
-    "http-grpc-client",
-    "ipfs-client-http-req",
-    "png_utils",
-    "tests_utils",
-]
+members = ["http-client", "ipfs-client-http-req", "png_utils", "tests_utils"]
 resolver = "2"
 
 ################################################################################
 # [patch."https://github.com/Interstellar-Network/lib-garble-rs.git"]
 # lib-garble-rs = { path = "../lib-garble-rs/lib-garble-rs/" }
-# ipfs-client-http-req = { path = "../lib-garble-rs/ipfs-client-http-req/" }
 ################################################################################

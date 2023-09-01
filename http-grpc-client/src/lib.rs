@@ -8,6 +8,8 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::panic)]
 #![warn(clippy::unwrap_used)]
+#![cfg(feature = "reqwless")]
+#![feature(async_fn_in_trait)]
 
 extern crate alloc;
 
@@ -19,6 +21,9 @@ use alloc::vec::Vec;
 use base64::{engine::general_purpose, Engine as _};
 use bytes::{Buf, BufMut};
 use snafu::prelude::*;
+
+#[cfg(feature = "reqwless")]
+mod impl_reqwless;
 
 #[cfg(all(feature = "sgx", feature = "with_http_req_sgx"))]
 use http_req_sgx as http_req;
@@ -61,7 +66,7 @@ pub fn encode_body_grpc_web<T: prost::Message>(
 }
 
 #[derive(PartialEq, Eq)]
-pub enum ContentType {
+pub enum MyContentType {
     /// "application/grpc-web" or "application/grpc-web+proto"
     GrpcWeb,
     /// "application/grpc-web-text+proto"
@@ -94,18 +99,18 @@ pub enum RequestMethod {
 /// - `ReponseDecodeError` if `prost::message::Message::decode` failed
 pub fn decode_body_grpc_web<T: prost::Message + Default>(
     body_bytes: bytes::Bytes,
-    grpc_content_type: &ContentType,
+    grpc_content_type: &MyContentType,
 ) -> Result<T, InterstellarHttpClientError> {
     // CHECK
-    if grpc_content_type != &ContentType::GrpcWeb
-        && grpc_content_type != &ContentType::GrpcWebTextProto
+    if grpc_content_type != &MyContentType::GrpcWeb
+        && grpc_content_type != &MyContentType::GrpcWebTextProto
     {
         return Err(InterstellarHttpClientError::ReponseDecodeWrongContentType);
     }
 
     let mut body = match grpc_content_type {
         // only "application/grpc-web-text+proto" needs to be base64 decoded, the rest is handled as-is
-        ContentType::GrpcWebTextProto => general_purpose::STANDARD_NO_PAD
+        MyContentType::GrpcWebTextProto => general_purpose::STANDARD_NO_PAD
             .decode(body_bytes)
             .map_err(|_| InterstellarHttpClientError::ReponseDecodeError)?
             .into(),
@@ -138,10 +143,10 @@ pub fn decode_body_grpc_web<T: prost::Message + Default>(
 /// - `ReponseDecodeError` if `parity_scale_codec::codec::Decode` failed
 pub fn decode_rpc_json<T: codec::Decode>(
     body_bytes: &bytes::Bytes,
-    grpc_content_type: &ContentType,
+    grpc_content_type: &MyContentType,
 ) -> Result<T, InterstellarHttpClientError> {
     // CHECK
-    if grpc_content_type != &ContentType::Json {
+    if grpc_content_type != &MyContentType::Json {
         return Err(InterstellarHttpClientError::ReponseDecodeWrongContentType);
     }
 
@@ -209,9 +214,9 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
     body_bytes: Option<bytes::Bytes>,
     url: &str,
     request_method: &RequestMethod,
-    request_content_type: Option<&ContentType>,
+    request_content_type: Option<&MyContentType>,
     timeout_duration: core::time::Duration,
-) -> Result<(bytes::Bytes, ContentType), InterstellarHttpClientError> {
+) -> Result<(bytes::Bytes, MyContentType), InterstellarHttpClientError> {
     log::info!(
         "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
         url,
@@ -262,14 +267,14 @@ pub fn sp_offchain_fetch_from_remote_grpc_web(
     }
 
     match request_content_type {
-        Some(ContentType::GrpcWeb) => {
+        Some(MyContentType::GrpcWeb) => {
             request = request.add_header("Content-Type", "application/grpc-web");
             request = request.add_header("X-Grpc-Web", "1");
         }
-        Some(ContentType::Json) => {
+        Some(MyContentType::Json) => {
             request = request.add_header("Content-Type", "application/json;charset=utf-8");
         }
-        Some(ContentType::MultipartFormData) => {
+        Some(MyContentType::MultipartFormData) => {
             request =
                 request.add_header("Content-Type", "multipart/form-data;boundary=\"boundary\"");
         }
@@ -381,9 +386,9 @@ pub fn http_req_fetch_from_remote_grpc_web(
     body_bytes: Option<bytes::Bytes>,
     url: &str,
     request_method: &RequestMethod,
-    request_content_type: Option<&ContentType>,
+    request_content_type: Option<&MyContentType>,
     timeout_duration: core::time::Duration,
-) -> Result<(bytes::Bytes, ContentType), InterstellarHttpClientError> {
+) -> Result<(bytes::Bytes, MyContentType), InterstellarHttpClientError> {
     log::info!(
         "fetch_from_remote_grpc_web: url = {}, sending body b64 = {}",
         url,
@@ -418,14 +423,14 @@ pub fn http_req_fetch_from_remote_grpc_web(
     }
 
     match request_content_type {
-        Some(ContentType::GrpcWeb) => {
+        Some(MyContentType::GrpcWeb) => {
             request.header("Content-Type", "application/grpc-web");
             request.header("X-Grpc-Web", "1");
         }
-        Some(ContentType::Json) => {
+        Some(MyContentType::Json) => {
             request.header("Content-Type", "application/json;charset=utf-8");
         }
-        Some(ContentType::MultipartFormData) => {
+        Some(MyContentType::MultipartFormData) => {
             request.header("Content-Type", "multipart/form-data;boundary=\"boundary\"");
         }
         _ => {}
@@ -478,23 +483,27 @@ pub fn http_req_fetch_from_remote_grpc_web(
     ))
 }
 
-#[cfg(any(feature = "with_http_req", feature = "with_sp_offchain"))]
-fn parse_response_content_type(response_content_type_str: &str) -> ContentType {
+#[cfg(any(
+    feature = "with_http_req",
+    feature = "with_sp_offchain",
+    feature = "reqwless"
+))]
+fn parse_response_content_type(response_content_type_str: &str) -> MyContentType {
     log::info!(
         "[fetch_from_remote_grpc_web] content_type: {}",
         response_content_type_str,
     );
     match response_content_type_str {
         // yes, "application/grpc-web" and "application/grpc-web+proto" use the same encoding
-        "application/grpc-web" | "application/grpc-web+proto" => ContentType::GrpcWeb,
+        "application/grpc-web" | "application/grpc-web+proto" => MyContentType::GrpcWeb,
         // BUT "application/grpc-web-text+proto" is base64 encoded
-        "application/grpc-web-text+proto" => ContentType::GrpcWebTextProto,
+        "application/grpc-web-text+proto" => MyContentType::GrpcWebTextProto,
         // classic JSON
         "application/json"
         | "application/json;charset=utf-8"
-        | "application/json; charset=utf-8" => ContentType::Json,
-        "text/plain" => ContentType::TextPlain,
-        _ => ContentType::UnsupportedContentType {
+        | "application/json; charset=utf-8" => MyContentType::Json,
+        "text/plain" => MyContentType::TextPlain,
+        _ => MyContentType::UnsupportedContentType {
             content_type: response_content_type_str.to_owned(),
         },
     }

@@ -23,8 +23,13 @@ http-grpc-client = { default-features = false, path = "../http-grpc-client" }
 [features]
 default = ["std"]
 sgx = ["http-grpc-client/sgx", "sgx_tstd", "http-grpc-client/with_http_req_sgx"]
-std = ["http-grpc-client/std", "http-grpc-client/with_http_req_std"]
+std = [
+    "http-grpc-client/std",
+    "http-grpc-client/with_http_req_std",
+    "http-grpc-client/with_http_req",
+]
 js = ["http-grpc-client/js"]
+with_sp_offchain = ["http-grpc-client/with_sp_offchain"]
 
 [dev-dependencies]
 tests-utils = { path = "../tests_utils" }

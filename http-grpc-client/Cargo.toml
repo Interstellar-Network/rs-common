@@ -35,9 +35,26 @@ http_req-sgx = { optional = true, default-features = false, features = [
 	"rust-tls",
 	"sgx",
 ], package = "http_req", git = "https://github.com/integritee-network/http_req" }
+reqwless = { optional = true, version = "0.5" }
+# MUST match the version used by "reqwless"
+embedded-nal-async = { optional = true, version = "0.4.0" }
+# MUST match the version used by "reqwless"
+heapless = { optional = true, version = "0.7" }
+# MUST match the version used by "reqwless"
+tokio = { optional = true, version = "1.21.2", features = ["full"] }
+# MUST match the version used by "reqwless"
+embedded-io = { optional = true, version = "0.4.0", features = [
+	"async",
+	"tokio",
+] }
+futures = { optional = true, version = "0.3", default-features = false }
 
-# W/A for error: the wasm*-unknown-unknown targets are not supported by default, you may need to enable the "js" feature. For more information see: https://docs.rs/getrandom/#webassembly-support
-getrandom = { version = "0.2", optional = true }
+# TODO(wasm)? W/A for error: the wasm*-unknown-unknown targets are not supported by default, you may need to enable the "js" feature. For more information see: https://docs.rs/getrandom/#webassembly-support
+# getrandom = { version = "0.2", optional = true }
+# https://github.com/rust-lang/cargo/issues/1197
+[target.'cfg(target_family = "wasm")'.dependencies.getrandom]
+version = "0.2"
+features = ["js"]
 
 [features]
 default = ["std"]
@@ -51,4 +68,14 @@ with_sp_offchain = ["sp-runtime", "sp-io"]
 std = ["log/std", "hex/std", "sp-runtime?/std", "sp-io?/std", "http_req?/std"]
 # core/rest-client/Cargo.toml
 sgx = ["http_req-sgx?/sgx"]
-js = ["http_req/std", "with_http_req_std", "getrandom/js"]
+# TODO(wasm)?
+# js = ["http_req_wasi", "with_http_req", "getrandom/js"]
+js = ["http_req", "with_http_req", "getrandom/js"]
+reqwless = [
+	"dep:reqwless",
+	"embedded-nal-async",
+	"heapless",
+	"futures",
+	"tokio",
+	"embedded-io",
+]

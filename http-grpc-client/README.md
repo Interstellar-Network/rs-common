@@ -4,7 +4,15 @@ TODO the http client is used both:
 - from the pallets/ repo
 - as a dependency of `lib-garble-rs`
 
-Be **REALLY** to make sure this client is compatible with no_std/sgx.
+Be **REALLY** sure this client is compatible with no_std/sgx.
+There are multiple environment where it MUST work:
+- in a SGX enclave; eg from `pallet-ocw-garble`: there the crate `http_req-sgx` is used
+- standard std; there the crate `http_req` is used
+- in WASM; eg `pallet-ocw-circuits`
+- no_std; eg from `pallet-ocw-garble`
+That is because:
+- `integritee-node` is compiled twice both for std environment, and for WASM.
+- `worker` CAN be compiled both for std environment, and for SGX(where `sgx_tstd` can be used as replacement for std).
 
 NOTE: it MUST use Integritee's `itc_rest_client`(or directly `http-req`) else the pallets tests fail with
 ```

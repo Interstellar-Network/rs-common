@@ -9,6 +9,16 @@ jobs:
   # TODO split test and lint; but that REQUIRE caching else recompile from scratch in between
   rust:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # TODO: "with_sp_offchain": requires to setup a Mock Substrate runtime so for now we skip it
+        # This is not ideal, but this repo is tested as part of the others(mostly "pallets") so...
+        rust_args:
+          [
+            { features: "with_http_req,prost", test_args: "" },
+            { features: "with_http_req,with_sp_offchain", test_args: "" },
+            { features: "with_sp_offchain", test_args: "-h" },
+          ]
     steps:
       ##########################################################################
       # This is pretty dumb: we MUST call action/checkout BEFORE using a local action...
@@ -26,24 +36,20 @@ jobs:
 
       ##########################################################################
 
-      - uses: Interstellar-Network/gh-actions/install-protoc@v3-dev
-
-      ##########################################################################
-
       - uses: Interstellar-Network/gh-actions/install-go-ipfs@v3-dev
 
       ##########################################################################
 
       - uses: Interstellar-Network/gh-actions/rust-build-and-test@v3-dev
         with:
-          check_args: --features=with_sp_offchain,with_http_req_std
-          test_args: --features=with_sp_offchain,with_http_req_std
+          # default = --no-default-features --features=with_http_req,http_req,std
+          test_args: "--features=${{ matrix.rust_args.features }} ${{ matrix.rust_args.test_args }}"
 
       ##########################################################################
 
       - uses: Interstellar-Network/gh-actions/rust-lint@v3-dev
         with:
-          clippy_args: --features=with_sp_offchain,with_http_req_std -- -D warnings
+          clippy_args: --features=${{ matrix.rust_args.features }} -- -D warnings
 
       ##########################################################################
 
@@ -77,8 +83,6 @@ jobs:
           use_toolchain_toml: "true"
           toolchain_toml_path: ./tests_sgx/samplecode/project_template/enclave/rust-toolchain.toml
           toolchain_components: ""
-
-      - uses: Interstellar-Network/gh-actions/install-protoc@v3-dev
 
       ##########################################################################
 

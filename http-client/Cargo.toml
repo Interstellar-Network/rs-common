@@ -1,6 +1,6 @@
 [package]
-name = "http-grpc-client"
-version = "0.3.0"
+name = "interstellar-http-client"
+version = "0.5.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,7 +10,9 @@ log = { version = "0.4", default-features = false }
 base64 = { default-features = false, features = ["alloc"], version = "0.21" }
 bytes = { version = "1", default-features = false }
 # https://github.com/tokio-rs/prost#using-prost-in-a-no_std-crate
-prost = { version = "0.11", default-features = false, features = ["prost-derive"] }
+prost = { optional = true, version = "0.11", default-features = false, features = [
+	"prost-derive",
+] }
 serde = { version = "1", default-features = false }
 serde_json = { version = "1", default-features = false, features = ['alloc'] }
 hex = { version = "0.4", default-features = false, features = ['alloc'] }
@@ -18,6 +20,7 @@ codec = { package = "parity-scale-codec", version = "3", default-features = fals
 	"derive",
 ] }
 snafu = { version = "0.7", default-features = false }
+cfg-if = "1.0"
 
 sp-runtime = { optional = true, default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.39" }
 sp-io = { optional = true, default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.39" }
@@ -26,26 +29,23 @@ sp-io = { optional = true, default-features = false, git = "https://github.com/p
 # cf app-libs/exchange-oracle/Cargo.toml
 # cf https://github.com/integritee-network/worker/blob/4083b03427890a9aeac0ddc053423b57bf590029/core/rest-client/Cargo.toml
 # http_req: default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In any case, rustls works fine
-http_req = { optional = true, default-features = false, features = ["rust-tls"], branch = "master", git = "https://github.com/integritee-network/http_req" }
-http_req-sgx = { optional = true, default-features = false, features = ["rust-tls", "sgx"], package = "http_req", git = "https://github.com/integritee-network/http_req" }
+http_req = { optional = true, default-features = false, features = [
+	"rust-tls",
+], branch = "master", git = "https://github.com/integritee-network/http_req" }
+http_req-sgx = { optional = true, default-features = false, features = [
+	"rust-tls",
+	"sgx",
+], package = "http_req", git = "https://github.com/integritee-network/http_req" }
 
 [features]
-default = ["std"]
+default = ["std", "with_http_req", "with_http_req_std"]
 # client: SHOULD use "with_http_req_std"/"with_http_req_sgx", or not
 # "with_http_req" is INTERNAL; idea from https://blog.turbo.fish/cargo-features/
 # "Activating a dependency if a combination of features is active"
 with_http_req = []
-with_http_req_std = ["with_http_req", "http_req"]
-with_http_req_sgx = ["with_http_req", "http_req-sgx"]
+with_http_req_std = ["http_req"]
+with_http_req_sgx = ["http_req-sgx"]
 with_sp_offchain = ["sp-runtime", "sp-io"]
-std = [
-	"log/std",
-	"hex/std",
-	"sp-runtime?/std",
-	"sp-io?/std",
-	"http_req?/std",
-]
+std = ["log/std", "hex/std", "sp-runtime?/std", "sp-io?/std", "http_req?/std"]
 # core/rest-client/Cargo.toml
-sgx = [
-	"http_req-sgx?/sgx",
-]
+sgx = ["http_req-sgx?/sgx"]

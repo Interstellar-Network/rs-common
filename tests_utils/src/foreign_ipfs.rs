@@ -68,8 +68,8 @@ impl ForeignNode {
 
         // create the temporary directory for the repo etc
         let mut tmp_dir = env::temp_dir();
-        let mut rng = rand::thread_rng();
-        tmp_dir.push(&format!("ipfs_test_{}", rng.gen::<u64>()));
+        let mut rng = rand::rng();
+        tmp_dir.push(format!("ipfs_test_{}", rng.random::<u64>()));
         let _ = fs::create_dir(&tmp_dir);
 
         // initialize the node and assign the temporary directory to it
@@ -191,7 +191,7 @@ pub async fn api_call<T: AsRef<str>>(api_port: u16, call: T) -> String {
     let bytes = Command::new("curl")
         .arg("-X")
         .arg("POST")
-        .arg(&format!(
+        .arg(format!(
             "http://127.0.0.1:{}/api/v0/{}",
             api_port,
             call.as_ref()

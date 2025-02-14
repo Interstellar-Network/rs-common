@@ -51,10 +51,6 @@ pub struct IpfsAddResponse {
     pub size: usize,
 }
 
-#[derive(Deserialize, Debug)]
-// #[serde(transparent)]
-pub struct IpfsCatResponse(Vec<u8>);
-
 /// IpfsClient using http_req
 /// Compatible with no_std/sgx
 ///

@@ -22,8 +22,9 @@ codec = { package = "parity-scale-codec", version = "3", default-features = fals
 snafu = { version = "0.7", default-features = false }
 cfg-if = "1.0"
 
-sp-runtime = { optional = true, default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.39" }
-sp-io = { optional = true, default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.39" }
+# SHOULD roughly match https://github.com/integritee-network/integritee-node/blob/d2262b582b2c32de68afcdf0765392d4c781e3ef/Cargo.toml#L90
+sp-runtime = { optional = true, default-features = false, version = "38.0.0" }
+sp-io = { optional = true, default-features = false, version = "37.0.0" }
 
 # when used in SGX enclave
 # cf app-libs/exchange-oracle/Cargo.toml

@@ -1,3 +1,9 @@
 [workspace]
 members = ["http-client", "ipfs-client-http-req", "png_utils", "tests_utils"]
 resolver = "2"
+
+[workspace.dependencies]
+parity-scale-codec = { version = "3.0.0", default-features = false, features = ["derive"] }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.42" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.42" }
+

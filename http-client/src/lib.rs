@@ -164,7 +164,7 @@ pub enum MyRequestMethod {
 ///
 /// - `ReponseDecodeWrongContentType` if `grpc_content_type` is not Json
 /// - `ReponseDecodeError` if `parity_scale_codec::codec::Decode` failed
-pub fn decode_rpc_json<T: codec::Decode>(
+pub fn decode_rpc_json<T: parity_scale_codec::Decode>(
     body_bytes: &bytes::Bytes,
     grpc_content_type: &MyContentType,
 ) -> Result<T, InterstellarHttpClientError> {

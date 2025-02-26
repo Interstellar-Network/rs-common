@@ -17,15 +17,13 @@ serde = { version = "1", default-features = false }
 serde_json = { version = "1", default-features = false, features = ['alloc'] }
 hex = { version = "0.4", default-features = false, features = ['alloc'] }
 # should probably be kept in sync with https://github.com/integritee-network/worker/blob/0a401bcaabb27ba4e5f59357b0a324c311b39ecd/sidechain/storage/Cargo.toml#L9
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [
-	"derive",
-] }
 snafu = { version = "0.7", default-features = false }
 cfg-if = "1.0"
 
 # SHOULD roughly match https://github.com/integritee-network/integritee-node/blob/d2262b582b2c32de68afcdf0765392d4c781e3ef/Cargo.toml#L90
-sp-runtime = { optional = true, default-features = false, version = "38.0.0" }
-sp-io = { optional = true, default-features = false, version = "37.0.0" }
+parity-scale-codec = { workspace = true }
+sp-io = { workspace = true, optional = true }
+sp-runtime = { workspace = true, optional = true }
 
 # when used in SGX enclave
 # cf app-libs/exchange-oracle/Cargo.toml

@@ -19,7 +19,7 @@ use base64::{engine::general_purpose, Engine as _};
 use ipfs_api_backend_hyper::TryFromUri;
 use libp2p::{Multiaddr, PeerId};
 use libp2p_identity::PublicKey;
-use rand::prelude::*;
+use rand::Rng;
 use serde::Deserialize;
 use std::{
     env, fs,
@@ -68,8 +68,8 @@ impl ForeignNode {
 
         // create the temporary directory for the repo etc
         let mut tmp_dir = env::temp_dir();
-        let mut rng = rand::rng();
-        tmp_dir.push(format!("ipfs_test_{}", rng.random::<u64>()));
+        let mut rng = rand::thread_rng();
+        tmp_dir.push(format!("ipfs_test_{}", rng.gen::<u64>()));
         let _ = fs::create_dir(&tmp_dir);
 
         // initialize the node and assign the temporary directory to it

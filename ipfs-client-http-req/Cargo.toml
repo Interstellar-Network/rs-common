@@ -35,7 +35,7 @@ with_http_req = ["interstellar-http-client/with_http_req"]
 with_sp_offchain = ["interstellar-http-client/with_sp_offchain"]
 
 [dev-dependencies]
-tests-utils = { git = "https://github.com/Interstellar-Network/rs-common", branch = "main" }
+tests-utils = { path = "../tests_utils/" }
 tokio = { version = "*", default-features = false, features = ["rt", "macros"] }
 futures = "0.3"
 test-log = "0.2"

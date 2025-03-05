@@ -25,7 +25,7 @@ jobs:
       # else: Error: Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under '/home/runner/work/rs-common/rs-common/.github/actions/setup'. Did you forget to run actions/checkout before running your local action?
       - uses: Interstellar-Network/gh-actions/prepare@ci-v4
         with:
-          ssh_key_input: ${{ secrets.SSH_KEY_MACHINE_USER_INTERSTELLAR_CI }}
+          interstellar_token_ci: ${{ secrets.INTERSTELLAR_TOKEN_CI }}
           install_cmake_and_ninja: false
 
       ##########################################################################
@@ -74,7 +74,7 @@ jobs:
       # else: Error: Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under '/home/runner/work/rs-common/rs-common/.github/actions/setup'. Did you forget to run actions/checkout before running your local action?
       - uses: Interstellar-Network/gh-actions/prepare@ci-v4
         with:
-          ssh_key_input: ${{ secrets.SSH_KEY_MACHINE_USER_INTERSTELLAR_CI }}
+          interstellar_token_ci: ${{ secrets.INTERSTELLAR_TOKEN_CI }}
           install_cmake_and_ninja: false
 
       ##########################################################################

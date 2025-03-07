@@ -3,7 +3,33 @@ members = ["http-client", "ipfs-client-http-req", "png_utils", "tests_utils"]
 resolver = "2"
 
 [workspace.dependencies]
-parity-scale-codec = { version = "<3.7", default-features = false, features = ["derive"] }
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.42" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.42" }
+# LOCAL deps; internal to this repository
+interstellar-http-client = { path = "http-client", default-features = false }
+tests-utils = { path = "tests_utils" }
 
+# crates.io
+anyhow = "1"
+base64 = { version = "0.21", default-features = false }
+bytes = { version = "1", default-features = false }
+cfg-if = "1.0"
+env_logger = "0.10"
+futures = "0.3"
+hex = { version = "0.4", default-features = false }
+ipfs-api-backend-hyper = ">0.5"
+libp2p = { version = "0.51", default-features = false }
+libp2p-identity = "0.1.2"
+log = { version = "0.4", default-features = false }
+png = "0.17"
+prost = { version = "0.11", default-features = false }
+rand = { version = "0.7", default-features = false }
+serde = { version = "1.0", default-features = false }
+serde_json = { version = "1.0", default-features = false }
+serde_with = { version = "2.1.0", default-features = false }
+snafu = { version = "0.7", default-features = false }
+tempfile = "3"
+test-log = "0.2"
+tokio = { version = "*", default-features = false }
+
+parity-scale-codec = { version = "3,<3.7", default-features = false, features = ["derive"] } sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.42" } sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.42" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", branch = "master" }
+http_req = { git = "https://github.com/integritee-network/http_req", branch = "master", default-features = false } http_req-sgx = { git = "https://github.com/integritee-network/http_req", default-features = false }

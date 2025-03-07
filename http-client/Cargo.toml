@@ -6,19 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = { version = "0.4", default-features = false }
-base64 = { default-features = false, features = ["alloc"], version = "0.21" }
-bytes = { version = "1", default-features = false }
+log = { workspace = true }
+base64 = { workspace = true, features = ["alloc"] }
+bytes = { workspace = true }
 # https://github.com/tokio-rs/prost#using-prost-in-a-no_std-crate
-prost = { optional = true, version = "0.11", default-features = false, features = [
-	"prost-derive",
-] }
-serde = { version = "1", default-features = false }
-serde_json = { version = "1", default-features = false, features = ['alloc'] }
-hex = { version = "0.4", default-features = false, features = ['alloc'] }
+prost = { workspace = true, features = ["prost-derive"], optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["alloc"] }
+hex = { workspace = true, features = ["alloc"] }
 # should probably be kept in sync with https://github.com/integritee-network/worker/blob/0a401bcaabb27ba4e5f59357b0a324c311b39ecd/sidechain/storage/Cargo.toml#L9
-snafu = { version = "0.7", default-features = false }
-cfg-if = "1.0"
+snafu = { workspace = true }
+cfg-if = { workspace = true }
 
 # SHOULD roughly match https://github.com/integritee-network/integritee-node/blob/d2262b582b2c32de68afcdf0765392d4c781e3ef/Cargo.toml#L90
 parity-scale-codec = { workspace = true }
@@ -29,13 +27,8 @@ sp-runtime = { workspace = true, optional = true }
 # cf app-libs/exchange-oracle/Cargo.toml
 # cf https://github.com/integritee-network/worker/blob/4083b03427890a9aeac0ddc053423b57bf590029/core/rest-client/Cargo.toml
 # http_req: default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In any case, rustls works fine
-http_req = { optional = true, default-features = false, features = [
-	"rust-tls",
-], branch = "master", git = "https://github.com/integritee-network/http_req" }
-http_req-sgx = { optional = true, default-features = false, features = [
-	"rust-tls",
-	"sgx",
-], package = "http_req", git = "https://github.com/integritee-network/http_req" }
+http_req = { workspace = true, features = ["rust-tls"], optional = true }
+http_req-sgx = { workspace = true, features = ["rust-tls", "sgx"], optional = true }
 
 [features]
 default = ["std", "with_http_req", "with_http_req_std"]

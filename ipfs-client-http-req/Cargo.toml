@@ -6,19 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = { version = "0.4", default-features = false }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-serde_with = { version = "2.1.0", default-features = false, features = [
-    "alloc",
-    "macros",
-] }
-snafu = { version = "0.7", default-features = false }
+log = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["alloc"] }
+serde_with = { workspace = true, features = ["alloc", "macros"] }
+snafu = { workspace = true }
 # http_req_sgx = { package = "http_req", git = "https://github.com/mesalock-linux/http_req-sgx", optional = true }
 # default is "native-tls", but that needs to (cross-)compile openssl-sys which COULD be a pain on Android; In ancy case, rustls works fine
 # http_req_std = { package = "http_req", version = "0.9", optional = true, default-features = false, features = ["rust-tls"] }
-sgx_tstd = { branch = "master", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
-interstellar-http-client = { default-features = false, path = "../http-client" }
+sgx_tstd = { workspace = true, optional = true }
+interstellar-http-client = { workspace = true }
 
 [features]
 default = ["std"]
@@ -35,8 +32,8 @@ with_http_req = ["interstellar-http-client/with_http_req"]
 with_sp_offchain = ["interstellar-http-client/with_sp_offchain"]
 
 [dev-dependencies]
-tests-utils = { path = "../tests_utils/" }
-tokio = { version = "*", default-features = false, features = ["rt", "macros"] }
-futures = "0.3"
-test-log = "0.2"
-env_logger = "0.10"
+tests-utils = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
+futures = { workspace = true }
+test-log = { workspace = true }
+env_logger = { workspace = true }
